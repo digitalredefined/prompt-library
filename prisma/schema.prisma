@@ -1,7 +1,9 @@
 // Prisma schema for the Prompt Library.
-// The full data model (User, Prompt, Folder, Category, Tag, PromptVersion)
-// is defined in DIG-8. This file currently sets up the datasource, generator,
-// and a placeholder model so the DB layer is connectable and migratable.
+//
+// Data model built in DIG-8. The auth models (User, Account, Session,
+// VerificationToken) follow the @auth/prisma-adapter shape so Auth.js (DIG-11)
+// drops in without a schema rewrite. Application entities (Prompt, Folder,
+// Category, Tag, PromptVersion) are scoped to their owning User.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,10 +14,168 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Placeholder model to bootstrap the first migration. Remove in DIG-8 once the
-/// real entities land.
-model HealthCheck {
+// ---------------------------------------------------------------------------
+// Auth (Auth.js / NextAuth Prisma adapter) — wired up in DIG-11 (M2)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  // Owned application data
+  prompts    Prompt[]
+  folders    Folder[]
+  categories Category[]
+  tags       Tag[]
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Prompt Library domain
+// ---------------------------------------------------------------------------
+
+/// Source of a stored prompt body — a manual edit or an AI optimization.
+enum PromptSource {
+  MANUAL
+  AI
+}
+
+model Prompt {
   id        String   @id @default(cuid())
-  note      String   @default("ok")
+  title     String
+  body      String
+  notes     String?
+  /// Free-form metadata (e.g. model, variables). Shape refined as features land.
+  metadata  Json?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // A prompt with no folder lives at the library root.
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  categories Category[]
+  tags       Tag[]
+  versions   PromptVersion[]
+
+  @@index([ownerId])
+  @@index([folderId])
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Self-relation for nesting. Deleting a folder moves its children to the
+  // parent level (root); cycle prevention is enforced in the API (DIG-21).
+  parentId String?
+  parent   Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Folder[] @relation("FolderTree")
+
+  prompts Prompt[]
+
+  @@index([ownerId])
+  @@index([parentId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  /// Optional display color (e.g. hex) for the category chip.
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  prompts Prompt[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  prompts Prompt[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId])
+}
+
+/// Immutable snapshot of a prompt's body, captured on each save/optimization
+/// so earlier versions can be viewed, diffed, and restored (DIG-20).
+model PromptVersion {
+  id        String       @id @default(cuid())
+  promptId  String
+  prompt    Prompt       @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  notes     String?
+  source    PromptSource @default(MANUAL)
+  createdAt DateTime     @default(now())
+
+  @@index([promptId])
 }
