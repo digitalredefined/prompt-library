@@ -13,7 +13,8 @@ changes, and improve prompts with Claude.
 
 - **Framework:** Next.js (App Router, TypeScript) — currently Next.js 16, React 19
 - **UI:** Tailwind CSS (v4) + shadcn/ui (added in M7)
-- **DB/ORM:** Postgres + Prisma
+- **DB/ORM:** Postgres + Prisma (pinned to **Prisma 6.x** — Prisma 7 drops the
+  classic `url = env(...)` datasource in favour of driver adapters; revisit later)
 - **Auth:** Auth.js (NextAuth) with the Prisma adapter
 - **AI:** Anthropic Claude API (server-side) for the optimization feature
 - **Hosting:** Vercel
@@ -39,10 +40,14 @@ app/          # App Router routes, layouts, pages, route handlers
 components/    # Reusable UI components (shadcn/ui lives here once added)
 lib/          # Shared utilities, DB client, server logic, API clients
 public/       # Static assets
-prisma/       # Prisma schema + migrations (added in M1/DIG-7)
+prisma/       # Prisma schema, migrations, and seed script (DIG-7)
 ```
 
 - Path alias: **`@/*` → repo root** (e.g. `import { cn } from "@/lib/utils"`).
+- **DB access:** import the shared client from `@/lib/prisma` (a hot-reload-safe
+  singleton) — never instantiate `new PrismaClient()` in app code.
+- Local Postgres runs via `docker-compose.yml`; `npm run db:*` scripts wrap the
+  Prisma/Docker workflow (see README).
 - `lib/utils.ts` currently ships a dependency-free `cn`; swap it for the
   clsx + tailwind-merge version when shadcn/ui is introduced (DIG-34).
 

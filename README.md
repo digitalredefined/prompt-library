@@ -17,15 +17,44 @@ categorize and tag them, search across everything, and improve them with Claude.
 
 ## Getting started
 
-Requirements: **Node.js 20+** and npm.
+Requirements: **Node.js 20+**, npm, and **Docker** (for the local database).
 
 ```bash
-npm install       # install dependencies
-npm run dev       # start the dev server at http://localhost:3000
+npm install                 # install dependencies
+cp .env.example .env        # then adjust values if needed
+npm run db:up               # start local Postgres (docker-compose)
+npm run db:migrate          # apply migrations to the local DB
+npm run dev                 # start the dev server at http://localhost:3000
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Edit `app/page.tsx` and the
 page hot-reloads.
+
+## Database
+
+Local development uses a Postgres container defined in `docker-compose.yml`.
+Production uses a hosted Postgres provider (Neon is the intended target for
+Vercel's serverless runtime) — set its connection string as `DATABASE_URL`.
+
+The ORM is [Prisma](https://www.prisma.io/); the schema lives in
+`prisma/schema.prisma` and the client singleton in `lib/prisma.ts`.
+
+**Migration workflow**
+
+```bash
+npm run db:up          # start the local Postgres container
+npm run db:migrate     # create + apply a migration (prisma migrate dev)
+npm run db:generate    # regenerate the Prisma client
+npm run db:seed        # run the seed script (prisma/seed.ts)
+npm run db:studio      # open Prisma Studio to browse data
+npm run db:reset       # drop, re-migrate, and re-seed (destructive)
+npm run db:deploy      # apply migrations in CI/production (prisma migrate deploy)
+npm run db:down        # stop the local Postgres container
+```
+
+Migrations in `prisma/migrations/` are committed to the repo. The full data
+model (User, Prompt, Folder, Category, Tag, PromptVersion) is defined in a later
+issue; the current schema carries a placeholder model to bootstrap migrations.
 
 ## Scripts
 

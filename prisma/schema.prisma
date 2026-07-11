@@ -1,0 +1,21 @@
+// Prisma schema for the Prompt Library.
+// The full data model (User, Prompt, Folder, Category, Tag, PromptVersion)
+// is defined in DIG-8. This file currently sets up the datasource, generator,
+// and a placeholder model so the DB layer is connectable and migratable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Placeholder model to bootstrap the first migration. Remove in DIG-8 once the
+/// real entities land.
+model HealthCheck {
+  id        String   @id @default(cuid())
+  note      String   @default("ok")
+  createdAt DateTime @default(now())
+}
