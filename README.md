@@ -6,14 +6,14 @@ categorize and tag them, search across everything, and improve them with Claude.
 
 ## Stack
 
-| Concern    | Choice                                      |
-| ---------- | ------------------------------------------- |
-| Framework  | Next.js (App Router, TypeScript)            |
-| UI         | Tailwind CSS + shadcn/ui                     |
-| DB / ORM   | Postgres + Prisma                           |
-| Auth       | Auth.js (NextAuth)                          |
-| AI         | Anthropic Claude API (optimization feature) |
-| Hosting    | Vercel                                       |
+| Concern   | Choice                                      |
+| --------- | ------------------------------------------- |
+| Framework | Next.js (App Router, TypeScript)            |
+| UI        | Tailwind CSS + shadcn/ui                    |
+| DB / ORM  | Postgres + Prisma                           |
+| Auth      | Auth.js (NextAuth)                          |
+| AI        | Anthropic Claude API (optimization feature) |
+| Hosting   | Vercel                                      |
 
 ## Getting started
 
@@ -29,13 +29,15 @@ page hot-reloads.
 
 ## Scripts
 
-| Script              | What it does                              |
-| ------------------- | ----------------------------------------- |
-| `npm run dev`       | Start the local dev server                |
-| `npm run build`     | Production build                          |
-| `npm run start`     | Serve the production build                |
-| `npm run lint`      | Run ESLint                                |
-| `npm run typecheck` | Type-check with `tsc --noEmit`            |
+| Script                 | What it does                      |
+| ---------------------- | --------------------------------- |
+| `npm run dev`          | Start the local dev server        |
+| `npm run build`        | Production build                  |
+| `npm run start`        | Serve the production build        |
+| `npm run lint`         | Run ESLint                        |
+| `npm run typecheck`    | Type-check with `tsc --noEmit`    |
+| `npm run format`       | Format the codebase with Prettier |
+| `npm run format:check` | Check formatting without writing  |
 
 ## Project structure
 
@@ -47,6 +49,26 @@ public/        # Static assets
 ```
 
 Path alias: `@/*` maps to the repo root (e.g. `import { cn } from "@/lib/utils"`).
+
+## Conventions
+
+- **Language:** TypeScript in `strict` mode. Avoid `any`; prefer precise types.
+- **Formatting:** Prettier is the source of truth (config in `.prettierrc.json`);
+  Tailwind classes are auto-sorted. Run `npm run format` before committing.
+- **Linting:** ESLint (`eslint-config-next`), with `eslint-config-prettier` last so
+  it never fights the formatter.
+- **Pre-commit:** Husky runs `lint-staged`, which lints + formats staged files.
+  It runs automatically on `git commit` after `npm install` (via the `prepare`
+  script). To bypass in an emergency: `git commit --no-verify`.
+- **Imports:** use the `@/*` path alias instead of long relative paths.
+- **Validation:** validate all external input with `zod` on server actions and
+  route handlers.
+- **Ownership:** scope every data query to the authenticated user and enforce
+  ownership on reads and writes.
+- **Secrets:** never commit secrets; use env vars documented in `.env.example`.
+  The Anthropic API key is server-side only.
+
+See [`CLAUDE.md`](./CLAUDE.md) for the full data model and milestone plan.
 
 ## Roadmap
 
