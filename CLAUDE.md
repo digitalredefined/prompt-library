@@ -84,7 +84,8 @@ Work is organized as Linear issues (DIG-*). One issue = one focused change.
 
 ## Testing & verification
 
-- **Booking-submission testing is manual only.** Anything that submits a booking (or otherwise triggers a real reservation/payment side effect) must be exercised by a human with direct observation and interaction — never by an automated test, headless run, or agent-driven flow. All _other_ testing may be automated (unit/integration DIG-38, Playwright E2E DIG-39). _(This app has no booking flow today; the rule is a standing guardrail for when one exists or this file seeds another project.)_
+- **Never test a booking page automatically. Full stop.** Do not drive, submit, or otherwise interact with any live booking/reservation page via an automated test, headless browser, script, or agent-driven flow. Any exercise of a booking page must be done by a human, hands-on, with direct observation. **Why:** booking testing currently runs against the _production_ environment (no dev/staging exists), so any automated interaction risks pushing real, extraneous reservations into the live system. A human must be the one to submit — no exceptions, and never "just to verify it works."
+- All _other_ testing may be automated (unit/integration DIG-38, Playwright E2E DIG-39). _(This Prompt Library app has no booking flow — the rule above is a standing guardrail carried into any project where a production booking page is in scope.)_
 - Use the **narrowest useful verification command** for what you touched — don't lean on a broad suite when a targeted check proves the change.
 - If a broad check is already failing for reasons unrelated to your change, say so plainly (in the PR) and include the targeted checks that _did_ pass. Don't let known-unrelated red hide a real regression.
 - Before committing non-trivial changes: `npm run typecheck` and `npm run lint` (also noted under Commands).

@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
+    "postinstall": "prisma generate",
     "db:up": "docker compose up -d 2>/dev/null || docker-compose up -d",
     "db:down": "docker compose down 2>/dev/null || docker-compose down",
     "db:migrate": "prisma migrate dev",

@@ -99,6 +99,38 @@ Path alias: `@/*` maps to the repo root (e.g. `import { cn } from "@/lib/utils"`
 
 See [`CLAUDE.md`](./CLAUDE.md) for the full data model and milestone plan.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`:
+formatting check → lint → typecheck → build. Automated tests slot into this
+workflow in M8 (DIG-38/DIG-39). No database is required for CI (it runs with
+`SKIP_ENV_VALIDATION=1`).
+
+## Deployment (Vercel)
+
+Preview and production deploys are handled by Vercel's Git integration once the
+project is linked. First-time setup:
+
+1. **Push to GitHub.** Create a repo and add it as `origin`:
+   ```bash
+   git remote add origin git@github.com:<owner>/<repo>.git
+   git push -u origin main
+   ```
+2. **Import into Vercel.** In the Vercel dashboard: _Add New… → Project_ → import
+   the GitHub repo. Framework preset auto-detects **Next.js**.
+3. **Provision a production database** (e.g. a Neon Postgres) and copy its pooled,
+   SSL connection string.
+4. **Set environment variables** in Vercel _Project → Settings → Environment
+   Variables_ (Production + Preview), per [`.env.example`](./.env.example):
+   - `DATABASE_URL` (required)
+   - `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` (from M2)
+   - `ANTHROPIC_API_KEY` (from M6)
+5. **Run migrations against production** before/at deploy: `npm run db:deploy`
+   (`prisma migrate deploy`) with the production `DATABASE_URL`.
+
+After linking, every PR gets a **preview deploy** and merges to `main` deploy to
+**production** automatically.
+
 ## Roadmap
 
 Work is tracked in Linear (project **Prompt Library**, team **Digitalredefined**)
