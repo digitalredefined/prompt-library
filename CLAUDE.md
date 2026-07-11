@@ -63,6 +63,46 @@ prisma/       # Prisma schema, migrations, and seed script (DIG-7)
 - Keep new code consistent with the surrounding style; prefer server components and
   server actions where they fit.
 
+## Working an issue (agent workflow)
+
+Work is organized as Linear issues (DIG-*). One issue = one focused change.
+
+**Before editing:**
+
+- Read the Linear issue, any linked spec, and the existing files you'll touch.
+- Identify the acceptance criteria **and the non-goals** — what this issue explicitly does _not_ cover.
+- Check how the codebase already solves similar problems; reuse those patterns instead of inventing new ones.
+- Run `git status` first so unrelated in-progress work isn't disturbed.
+
+**While editing:**
+
+- Implement **only** the stated acceptance criteria. Nothing more.
+- Don't change unrelated files. Don't refactor opportunistically — if you spot a worthwhile cleanup, note it as a follow-up issue rather than doing it here.
+- Preserve existing behavior unless the issue explicitly changes it.
+- Follow existing architecture, naming, and UI conventions.
+- Add or update tests when the change affects logic, data flow, permissions, integrations, or user-visible behavior (see Testing below).
+
+## Testing & verification
+
+- **Booking-submission testing is manual only.** Anything that submits a booking (or otherwise triggers a real reservation/payment side effect) must be exercised by a human with direct observation and interaction — never by an automated test, headless run, or agent-driven flow. All _other_ testing may be automated (unit/integration DIG-38, Playwright E2E DIG-39). _(This app has no booking flow today; the rule is a standing guardrail for when one exists or this file seeds another project.)_
+- Use the **narrowest useful verification command** for what you touched — don't lean on a broad suite when a targeted check proves the change.
+- If a broad check is already failing for reasons unrelated to your change, say so plainly (in the PR) and include the targeted checks that _did_ pass. Don't let known-unrelated red hide a real regression.
+- Before committing non-trivial changes: `npm run typecheck` and `npm run lint` (also noted under Commands).
+
+## Pull requests
+
+Review the diff for unrelated changes before opening. Every PR should explain:
+
+- **What** changed and **why**
+- The **Linear issue** it closes
+- **Acceptance criteria** checked off
+- **Screenshots / Loom / preview URL** when there's a UI or behavior change
+- **Risk** and **how to test**
+- **What was intentionally not done** (and any follow-up issues created)
+- **Agent involvement** — what Claude did vs. what was hand-written
+
+**Reviewing a PR:** review against the linked issue _only_. Flag acceptance-criteria gaps, bugs, broken data flow, scope creep, security issues, bad abstractions, and missing loading/error states. Don't suggest unrelated improvements unless they're severe. Group feedback as: **(1) Must fix before merge · (2) Should fix soon · (3) Safe to merge.**
+
 ## Data model (defined in DIG-8 — `prisma/schema.prisma`)
 
 The schema is implemented. The Auth.js adapter models (`Account`, `Session`,
