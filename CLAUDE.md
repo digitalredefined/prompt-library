@@ -63,7 +63,12 @@ prisma/       # Prisma schema, migrations, and seed script (DIG-7)
 - Keep new code consistent with the surrounding style; prefer server components and
   server actions where they fit.
 
-## Data model (target — built out over M1–M4)
+## Data model (defined in DIG-8 — `prisma/schema.prisma`)
+
+The schema is implemented. The Auth.js adapter models (`Account`, `Session`,
+`VerificationToken`) are **already present** — DIG-11 wires up Auth.js against
+them, it does not re-add them. Domain entities are owner-scoped with cascade on
+user delete.
 
 - **User** — linked to Auth.js.
 - **Prompt** — title, body, notes, metadata, timestamps, `ownerId`, `folderId`.
