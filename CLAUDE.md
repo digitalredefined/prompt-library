@@ -1,0 +1,98 @@
+# CLAUDE.md
+
+Guidance for Claude Code (and humans) working in this repository.
+
+## What this is
+
+**Prompt Library** — a Next.js web app to save, organize, categorize, and
+optimize AI prompts. Users save prompts into a searchable library, organize them
+into nested folders, categorize/tag them, search across everything, version their
+changes, and improve prompts with Claude.
+
+## Stack
+
+- **Framework:** Next.js (App Router, TypeScript) — currently Next.js 16, React 19
+- **UI:** Tailwind CSS (v4) + shadcn/ui (added in M7)
+- **DB/ORM:** Postgres + Prisma
+- **Auth:** Auth.js (NextAuth) with the Prisma adapter
+- **AI:** Anthropic Claude API (server-side) for the optimization feature
+- **Hosting:** Vercel
+
+Stack choices are defaults from the project plan and may be revised per-issue.
+
+## Commands
+
+```bash
+npm run dev        # dev server → http://localhost:3000
+npm run build      # production build
+npm run start      # serve production build
+npm run lint       # ESLint (eslint-config-next)
+npm run typecheck  # tsc --noEmit
+```
+
+Before committing non-trivial changes, run `npm run typecheck` and `npm run lint`.
+
+## Project structure
+
+```
+app/          # App Router routes, layouts, pages, route handlers
+components/    # Reusable UI components (shadcn/ui lives here once added)
+lib/          # Shared utilities, DB client, server logic, API clients
+public/       # Static assets
+prisma/       # Prisma schema + migrations (added in M1/DIG-7)
+```
+
+- Path alias: **`@/*` → repo root** (e.g. `import { cn } from "@/lib/utils"`).
+- `lib/utils.ts` currently ships a dependency-free `cn`; swap it for the
+  clsx + tailwind-merge version when shadcn/ui is introduced (DIG-34).
+
+## Conventions
+
+- **TypeScript strict** everywhere. No `any` without a good reason.
+- **Validation:** use `zod` for input validation on server actions / route handlers.
+- **Ownership:** every prompt/folder/etc. query MUST be scoped to the authenticated
+  user. Enforce ownership on every read and write (see DIG-13).
+- **Secrets:** never commit secrets. All config goes through env vars, documented
+  in `.env.example` and validated (zod) — see DIG-9. `.env*` is gitignored.
+- **Server-side AI:** the Anthropic key is server-only. Never expose it to the client.
+- Keep new code consistent with the surrounding style; prefer server components and
+  server actions where they fit.
+
+## Data model (target — built out over M1–M4)
+
+- **User** — linked to Auth.js.
+- **Prompt** — title, body, notes, metadata, timestamps, `ownerId`, `folderId`.
+- **Folder** — name, `parentId` (nesting), `ownerId`. Prevent reparent cycles.
+- **Category** & **Tag** — many-to-many to Prompt. Categories support color/label.
+- **PromptVersion** — snapshot of body + source (`manual` | `ai`) for history.
+
+## Roadmap — Linear project "Prompt Library" (team Digitalredefined)
+
+37 issues, DIG-5 → DIG-41, across 8 milestones. Work milestone by milestone.
+
+- **M1 · Foundation & Setup** — DIG-5 scaffold ✅, DIG-6 tooling (ESLint/Prettier/
+  Husky), DIG-7 Postgres+Prisma, DIG-8 schema, DIG-9 env/secrets, DIG-10 Vercel+CI.
+- **M2 · Auth & Users** — DIG-11 Auth.js, DIG-12 sessions/protected routes,
+  DIG-13 ownership & sharing model.
+- **M3 · Core Prompt Management** — DIG-14 CRUD, DIG-15 form, DIG-16 list view,
+  DIG-17 detail, DIG-18 delete, DIG-19 copy/quick actions, DIG-20 versioning.
+- **M4 · Organization** — DIG-21 folder CRUD API, DIG-22 folder sidebar,
+  DIG-23 move (drag & drop), DIG-24 categories/tags model, DIG-25 assign,
+  DIG-26 filter.
+- **M5 · Search & Discovery** — DIG-27 full-text search, DIG-28 sorting/filters,
+  DIG-29 favorites.
+- **M6 · Prompt Optimization (AI)** — DIG-30 Anthropic client, DIG-31 optimize flow,
+  DIG-32 diff/review, DIG-33 save optimized version.
+- **M7 · UX & Polish** — DIG-34 shadcn/ui + theming, DIG-35 responsive + dark mode,
+  DIG-36 empty/loading/error states, DIG-37 shortcuts + command palette.
+- **M8 · Testing & Deployment** — DIG-38 unit/integration tests, DIG-39 Playwright
+  E2E, DIG-40 production deploy, DIG-41 docs/README.
+
+Each Linear issue has acceptance criteria — treat them as the definition of done.
+Use `mcp__claude_ai_Linear__get_issue` with the issue ID (e.g. `DIG-7`) to read them.
+
+## Claude / Anthropic API notes
+
+The optimization feature calls Claude server-side. When implementing it, default to
+the latest capable model and consult the `claude-api` skill for current model IDs,
+streaming, and pricing rather than relying on memory.
