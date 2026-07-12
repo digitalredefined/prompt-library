@@ -37,7 +37,14 @@ function parseEnv(): Env {
     return process.env as unknown as Env;
   }
 
-  const parsed = envSchema.safeParse(process.env);
+  // Treat empty strings as "unset" so an optional var left blank in .env (e.g.
+  // AUTH_GOOGLE_ID="" before OAuth is configured) reads as undefined rather
+  // than failing a min-length check.
+  const source = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== ""),
+  );
+
+  const parsed = envSchema.safeParse(source);
 
   if (!parsed.success) {
     const details = parsed.error.issues
