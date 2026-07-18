@@ -140,6 +140,8 @@ project is linked. First-time setup:
 
 Environment variable names are case-sensitive: use `DATABASE_URL` exactly, not `database_url`. For local development, put these values in `.env`. For deployed Vercel preview/production builds, put them in Vercel **Project → Settings → Environment Variables**; a local `.env` file is not uploaded to Vercel. If Vercel logs `MissingSecret: Please define a secret`, generate a value with `npx auth secret` or `openssl rand -base64 32`, add it as `AUTH_SECRET` in Vercel for the affected Production/Preview environment, then redeploy.
 
+Environment variable names are case-sensitive: use `DATABASE_URL` exactly, not `database_url`. For local development, put these values in `.env`. For deployed Vercel preview/production builds, put them in Vercel **Project → Settings → Environment Variables**; a local `.env` file is not uploaded to Vercel. If Vercel logs `MissingSecret: Please define a secret`, generate a value with `npx auth secret` or `openssl rand -base64 32`, add it as `AUTH_SECRET` in Vercel for the affected Production/Preview environment, then redeploy.
+
 After linking, every PR gets a **preview deploy** and merges to `main` deploy to
 **production** automatically.
 
