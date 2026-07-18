@@ -1,4 +1,4 @@
-import { PrismaClient, PromptSource } from "@prisma/client";
+import { PrismaClient, PromptSource, PromptVisibility } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -51,7 +51,11 @@ async function main() {
   // A prompt with one AI-optimized version in its history.
   await prisma.prompt.upsert({
     where: { id: "seed-prompt-cold-email" },
-    update: {},
+    // Keep the sharing fields in sync on re-seed so the demo link always works.
+    update: {
+      visibility: PromptVisibility.UNLISTED,
+      shareSlug: "demo-cold-email-share",
+    },
     create: {
       id: "seed-prompt-cold-email",
       title: "Cold outreach email",
@@ -59,6 +63,9 @@ async function main() {
       notes: "Keep under 120 words.",
       ownerId: user.id,
       folderId: writingFolder.id,
+      // Demonstrates the foundational sharing model (DIG-13): a read-only link.
+      visibility: PromptVisibility.UNLISTED,
+      shareSlug: "demo-cold-email-share",
       categories: { connect: { id: marketing.id } },
       tags: { connect: { id: emailTag.id } },
       versions: {
