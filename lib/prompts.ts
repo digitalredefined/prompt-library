@@ -154,12 +154,28 @@ export type PromptFilter = {
   categoryIds?: string[];
   /** Prompt must have every one of these tags. */
   tagIds?: string[];
+  /** Free-text search across title, body, notes, and tag names (DIG-27). */
+  query?: string;
 };
 
 /**
- * Build the owner-scoped `where` for a prompt listing. Folder, categories, and
- * tags all combine with AND: a prompt matches only if it's in the folder (when
- * set) AND carries every selected category AND every selected tag.
+ * Split a free-text search query into terms. A prompt matches only if every
+ * term appears somewhere in it (AND across terms); see `buildPromptWhere`.
+ */
+export function searchTerms(query: string | undefined): string[] {
+  return (query ?? "").trim().split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Build the owner-scoped `where` for a prompt listing. Folder, categories,
+ * tags, and the search query all combine with AND: a prompt matches only if
+ * it's in the folder (when set) AND carries every selected category AND every
+ * selected tag AND matches every search term.
+ *
+ * Search (DIG-27) is case-insensitive: each term must hit at least one of the
+ * prompt's title, body, notes, or a tag name (OR across those fields). This is
+ * the "(or similar)" path of the full-text criterion — it composes into the
+ * same AND as the DIG-26 facets and keeps every read owner-scoped.
  */
 function buildPromptWhere(
   userId: string,
@@ -171,6 +187,16 @@ function buildPromptWhere(
   }
   for (const id of filter.tagIds ?? []) {
     and.push({ tags: { some: { id } } });
+  }
+  for (const term of searchTerms(filter.query)) {
+    and.push({
+      OR: [
+        { title: { contains: term, mode: "insensitive" } },
+        { body: { contains: term, mode: "insensitive" } },
+        { notes: { contains: term, mode: "insensitive" } },
+        { tags: { some: { name: { contains: term, mode: "insensitive" } } } },
+      ],
+    });
   }
   return {
     ownerId: userId,

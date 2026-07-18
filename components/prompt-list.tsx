@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
+import { highlight } from "@/components/highlight";
 import { CategoryChip, TagChip } from "@/components/labels";
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
 
@@ -35,9 +36,12 @@ const actionBtn =
 export function PromptList({
   prompts,
   folders,
+  query,
 }: {
   prompts: PromptCard[];
   folders: FolderOption[];
+  /** Active search query (DIG-27); matches are highlighted in title + snippet. */
+  query?: string;
 }) {
   const { movedOut, setDragging } = useLibraryDnd();
   const visible = prompts.filter((p) => !movedOut.has(p.id));
@@ -63,7 +67,7 @@ export function PromptList({
               draggable={false}
               className="font-medium hover:underline"
             >
-              {prompt.title}
+              {highlight(prompt.title, query)}
             </Link>
             {prompt.shared ? (
               <span className="text-foreground/50 shrink-0 rounded-full border border-current px-2 py-0.5 text-[11px] font-medium">
@@ -72,7 +76,7 @@ export function PromptList({
             ) : null}
           </div>
           <p className="text-foreground/50 line-clamp-2 flex-1 text-sm">
-            {prompt.body}
+            {highlight(prompt.body, query)}
           </p>
           {prompt.categories.length > 0 || prompt.tags.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1">
