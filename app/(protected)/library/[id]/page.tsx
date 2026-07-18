@@ -2,11 +2,23 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { CopyButton } from "@/components/copy-button";
 import { DeletePromptButton } from "@/components/delete-prompt-button";
 import { listFolders } from "@/lib/folders";
 import { getPrompt } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
 import { deletePromptAction, setSharingAction } from "../actions";
+
+/** Render prompt metadata (free-form JSON object) as a simple key/value list. */
+function metadataEntries(metadata: unknown): [string, string][] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return [];
+  }
+  return Object.entries(metadata as Record<string, unknown>).map(([k, v]) => [
+    k,
+    typeof v === "string" ? v : JSON.stringify(v),
+  ]);
+}
 
 const dateFmt = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
@@ -36,6 +48,7 @@ export default async function PromptDetailPage({
   }
 
   const deleteAction = deletePromptAction.bind(null, prompt.id);
+  const metadata = metadataEntries(prompt.metadata);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
@@ -46,14 +59,27 @@ export default async function PromptDetailPage({
         ← Library
       </Link>
 
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">{prompt.title}</h1>
-        <Link
-          href={`/library/${prompt.id}/edit`}
-          className="border-foreground/15 hover:bg-foreground/5 shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-        >
-          Edit
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <CopyButton
+            text={prompt.body}
+            label="Copy prompt"
+            className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+          />
+          <Link
+            href={`/library/${prompt.id}/edit`}
+            className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+          >
+            Edit
+          </Link>
+          <span
+            title="AI optimization arrives in M6 (DIG-31)"
+            className="border-foreground/10 text-foreground/40 cursor-not-allowed rounded-md border px-3 py-1.5 text-sm font-medium"
+          >
+            Optimize
+          </span>
+        </div>
       </div>
 
       <div className="text-foreground/50 flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -78,6 +104,25 @@ export default async function PromptDetailPage({
           <p className="text-foreground/80 text-sm whitespace-pre-wrap">
             {prompt.notes}
           </p>
+        </section>
+      ) : null}
+
+      {metadata.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-foreground/60 text-xs font-medium tracking-wide uppercase">
+            Metadata
+          </h2>
+          <dl className="border-foreground/10 divide-foreground/10 divide-y rounded-lg border text-sm">
+            {metadata.map(([key, value]) => (
+              <div
+                key={key}
+                className="flex items-center justify-between gap-4 px-4 py-2"
+              >
+                <dt className="text-foreground/60">{key}</dt>
+                <dd className="font-mono text-xs">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
       ) : null}
 

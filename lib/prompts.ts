@@ -99,7 +99,7 @@ function generateShareSlug(): string {
 /** List the user's prompts, newest first. Optionally filter to one folder. */
 export function listPrompts(
   userId: string,
-  options: { folderId?: string | null } = {},
+  options: { folderId?: string | null; skip?: number; take?: number } = {},
 ): Promise<Prompt[]> {
   return prisma.prompt.findMany({
     where: {
@@ -108,6 +108,21 @@ export function listPrompts(
       ...(options.folderId !== undefined ? { folderId: options.folderId } : {}),
     },
     orderBy: { updatedAt: "desc" },
+    skip: options.skip,
+    take: options.take,
+  });
+}
+
+/** Count the user's prompts (for pagination), optionally within one folder. */
+export function countPrompts(
+  userId: string,
+  options: { folderId?: string | null } = {},
+): Promise<number> {
+  return prisma.prompt.count({
+    where: {
+      ownerId: userId,
+      ...(options.folderId !== undefined ? { folderId: options.folderId } : {}),
+    },
   });
 }
 
