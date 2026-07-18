@@ -51,8 +51,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       options: authCheckCookieOptions,
     },
   },
+  // Trust the host in local development (the dev server is local, so the Host
+  // header is not attacker-controlled) and on Vercel; otherwise require an
+  // explicit opt-in so a misconfigured proxy can't spoof the callback host.
   trustHost:
-    process.env.AUTH_TRUST_HOST === "true" || Boolean(process.env.VERCEL),
+    process.env.NODE_ENV !== "production" ||
+    process.env.AUTH_TRUST_HOST === "true" ||
+    Boolean(process.env.VERCEL),
   pages: {
     signIn: "/signin",
   },
