@@ -82,9 +82,15 @@ export default async function PromptDetailPage({
         </div>
       </div>
 
-      <div className="text-foreground/50 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <div className="text-foreground/50 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
         <span>Updated {dateFmt.format(prompt.updatedAt)}</span>
         {folderName ? <span>Folder: {folderName}</span> : null}
+        <Link
+          href={`/library/${prompt.id}/history`}
+          className="hover:text-foreground underline underline-offset-4 transition-colors"
+        >
+          Version history
+        </Link>
       </div>
 
       <section className="flex flex-col gap-2">
