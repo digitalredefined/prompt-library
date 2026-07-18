@@ -18,7 +18,18 @@ import { prisma } from "@/lib/prisma";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
-  providers: [Google],
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  providers: [
+    Google({
+      // Vercel callback requests have been losing/mangling the PKCE verifier
+      // cookie, which causes Auth.js to reject otherwise valid Google OAuth
+      // callbacks with InvalidCheck. Keep the CSRF state check while avoiding
+      // the failing PKCE cookie round-trip for this confidential web client.
+      checks: ["state"],
+    }),
+  ],
+  trustHost:
+    process.env.AUTH_TRUST_HOST === "true" || Boolean(process.env.VERCEL),
   pages: {
     signIn: "/signin",
   },
