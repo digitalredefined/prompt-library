@@ -25,6 +25,10 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(1).optional(),
   AUTH_GOOGLE_ID: z.string().min(1).optional(),
   AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
+  // Canonical app URL for production OAuth callbacks, e.g. https://example.com.
+  AUTH_URL: z.url().optional(),
+  // Required behind some proxies if Auth.js cannot infer the trusted host.
+  AUTH_TRUST_HOST: z.enum(["true", "false"]).optional(),
 
   // --- Anthropic Claude API (required from M6 / DIG-30 onward) ---
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
