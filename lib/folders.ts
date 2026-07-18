@@ -107,6 +107,28 @@ export function getFolder(userId: string, id: string): Promise<Folder | null> {
   return prisma.folder.findFirst({ where: { id, ownerId: userId } });
 }
 
+/** A folder plus the number of prompts filed directly in it (not descendants). */
+export type FolderWithCount = Folder & { promptCount: number };
+
+/**
+ * List the user's folders (alphabetical) with a direct prompt count each, for
+ * the sidebar tree (DIG-22). The count is the prompts filed directly in the
+ * folder, not a rollup of descendants.
+ */
+export async function listFoldersWithCounts(
+  userId: string,
+): Promise<FolderWithCount[]> {
+  const rows = await prisma.folder.findMany({
+    where: { ownerId: userId },
+    orderBy: { name: "asc" },
+    include: { _count: { select: { prompts: true } } },
+  });
+  return rows.map(({ _count, ...folder }) => ({
+    ...folder,
+    promptCount: _count.prompts,
+  }));
+}
+
 // --- Writes (owner-scoped) --------------------------------------------------
 
 /**
