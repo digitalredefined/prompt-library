@@ -1,14 +1,15 @@
 import Link from "next/link";
 
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
+import { getCurrentUser } from "@/lib/session";
 
 /**
- * App header. Server component: reads the session with `auth()` and renders
- * sign-in / sign-out. Sign-out is a server action.
+ * App header. Server component: reads the session via the shared (request-cached)
+ * `getCurrentUser` helper and renders sign-in / sign-out. Sign-out is a server
+ * action.
  */
 export async function SiteHeader() {
-  const session = await auth();
-  const user = session?.user;
+  const user = await getCurrentUser();
 
   return (
     <header className="border-foreground/10 flex items-center justify-between border-b px-6 py-3">
@@ -19,9 +20,18 @@ export async function SiteHeader() {
       <div className="flex items-center gap-3 text-sm">
         {user ? (
           <>
-            <span className="text-foreground/70">
+            <Link
+              href="/library"
+              className="text-foreground/70 hover:text-foreground font-medium transition-colors"
+            >
+              Library
+            </Link>
+            <Link
+              href="/account"
+              className="text-foreground/70 hover:text-foreground font-medium transition-colors"
+            >
               {user.name ?? user.email}
-            </span>
+            </Link>
             <form
               action={async () => {
                 "use server";

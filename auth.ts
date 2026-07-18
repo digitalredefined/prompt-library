@@ -2,7 +2,6 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
-import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 const useSecureAuthCookies = process.env.NODE_ENV === "production";
@@ -56,5 +55,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     process.env.AUTH_TRUST_HOST === "true" || Boolean(process.env.VERCEL),
   pages: {
     signIn: "/signin",
+  },
+  callbacks: {
+    // Database sessions don't include the user id on `session.user` by default.
+    // Surface it so server code can scope every query to the owner (DIG-13) and
+    // so `session.user.id` is typed (see types/next-auth.d.ts).
+    session({ session, user }) {
+      if (session.user) {
+        session.user.id = user.id;
+      }
+      return session;
+    },
   },
 });
