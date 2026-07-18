@@ -5,6 +5,16 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
+const useSecureAuthCookies = process.env.NODE_ENV === "production";
+const authCookiePrefix = useSecureAuthCookies ? "__Secure-" : "";
+const authCheckCookieOptions = {
+  httpOnly: true,
+  sameSite: useSecureAuthCookies ? "none" : "lax",
+  path: "/",
+  secure: useSecureAuthCookies,
+  maxAge: 60 * 15,
+} as const;
+
 /**
  * Auth.js (NextAuth v5) configuration.
  *
@@ -29,6 +39,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       checks: ["state"],
     }),
   ],
+  cookies: {
+    // OAuth check cookies must survive the cross-site Google -> app callback.
+    // SameSite=None is only used for secure production deployments; local HTTP
+    // development keeps Auth.js-compatible lax cookies.
+    pkceCodeVerifier: {
+      name: `${authCookiePrefix}authjs.pkce.code_verifier`,
+      options: authCheckCookieOptions,
+    },
+    state: {
+      name: `${authCookiePrefix}authjs.state`,
+      options: authCheckCookieOptions,
+    },
+  },
   trustHost:
     process.env.AUTH_TRUST_HOST === "true" || Boolean(process.env.VERCEL),
   pages: {
