@@ -7,10 +7,12 @@ import {
   useEffect,
   useRef,
   useState,
+  type DragEvent,
   type ReactNode,
 } from "react";
 import { useFormStatus } from "react-dom";
 
+import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
 import type { FolderWithCount } from "@/lib/folders";
 import {
   createFolderAction,
@@ -31,7 +33,44 @@ import {
  * the URL to highlight the current filter. Folder mutations are the server
  * actions from `folder-actions` (built on the DIG-21 data layer); each
  * revalidates `/library`, re-rendering this component with fresh data.
+ *
+ * Folder rows and the Unfiled row are also drop targets for prompt drag-and-drop
+ * (DIG-23): dropping a dragged prompt card moves it into that folder (or to the
+ * root) via the shared DnD context.
  */
+
+/**
+ * Drop-target behaviour for a folder row. `target` is the destination folder id,
+ * or null for the library root (Unfiled). Only reacts to prompt drags (ignores
+ * other drag data), and reports a hover flag so the row can show an affordance.
+ */
+function usePromptDrop(target: string | null) {
+  const { move, setDragging } = useLibraryDnd();
+  const [over, setOver] = useState(false);
+
+  const dropHandlers = {
+    onDragOver: (e: DragEvent) => {
+      if (!e.dataTransfer.types.includes(PROMPT_DND_TYPE)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setOver(true);
+    },
+    onDragLeave: () => setOver(false),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      const id =
+        e.dataTransfer.getData(PROMPT_DND_TYPE) ||
+        e.dataTransfer.getData("text/plain");
+      setOver(false);
+      setDragging(false);
+      if (id) move(id, target);
+    },
+  };
+
+  return { over, dropHandlers };
+}
+
+const dropRing = "ring-foreground/40 ring-2";
 
 type TreeNode = FolderWithCount & { children: TreeNode[] };
 
@@ -126,22 +165,27 @@ export function FolderSidebar({
 
       {/* Unfiled — prompts with no folder. Hidden when there are none. */}
       {unfiledCount > 0 ? (
-        <Link
-          href="/library?folderId=none"
-          className={`${rowBase} mt-1 ${
-            activeFolderId === "none"
-              ? "bg-foreground/10 font-medium"
-              : "hover:bg-foreground/5"
-          }`}
-          aria-current={activeFolderId === "none" ? "page" : undefined}
-        >
-          <span className={`${linkBase} text-foreground/70 italic`}>
-            Unfiled
-          </span>
-          <span className={countBase}>{unfiledCount}</span>
-        </Link>
+        <UnfiledRow active={activeFolderId === "none"} count={unfiledCount} />
       ) : null}
     </nav>
+  );
+}
+
+/** The "Unfiled" (root) row — a filter link that also accepts prompt drops. */
+function UnfiledRow({ active, count }: { active: boolean; count: number }) {
+  const { over, dropHandlers } = usePromptDrop(null);
+  return (
+    <Link
+      href="/library?folderId=none"
+      {...dropHandlers}
+      className={`${rowBase} mt-1 ${over ? dropRing : ""} ${
+        active ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
+      }`}
+      aria-current={active ? "page" : undefined}
+    >
+      <span className={`${linkBase} text-foreground/70 italic`}>Unfiled</span>
+      <span className={countBase}>{count}</span>
+    </Link>
   );
 }
 
@@ -158,6 +202,7 @@ function FolderNode({
   const [renaming, setRenaming] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { over, dropHandlers } = usePromptDrop(node.id);
 
   const hasChildren = node.children.length > 0;
   const active = activeFolderId === node.id;
@@ -172,7 +217,8 @@ function FolderNode({
         </div>
       ) : (
         <div
-          className={`${rowBase} ${
+          {...dropHandlers}
+          className={`${rowBase} ${over ? dropRing : ""} ${
             active ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
           }`}
           style={indent}

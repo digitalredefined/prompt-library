@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { CopyButton } from "@/components/copy-button";
-import { getFolder } from "@/lib/folders";
+import { PromptList, type PromptCard } from "@/components/prompt-list";
+import { getFolder, listFolders } from "@/lib/folders";
 import { countPrompts, listPrompts } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
 
@@ -51,6 +51,22 @@ export default async function LibraryPage({
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
   });
+
+  // Folder options for the "Move to…" menu (DIG-23).
+  const folderOptions = (await listFolders(user.id)).map((f) => ({
+    id: f.id,
+    name: f.name,
+  }));
+
+  // Serializable card shape for the client list (drag source + move menu).
+  const cards: PromptCard[] = prompts.map((p) => ({
+    id: p.id,
+    title: p.title,
+    body: p.body,
+    folderId: p.folderId,
+    shared: p.visibility === "UNLISTED",
+    updatedLabel: dateFmt.format(p.updatedAt),
+  }));
 
   // Preserve the active folder filter across pagination links.
   const hrefForPage = (p: number) => {
@@ -112,52 +128,7 @@ export default async function LibraryPage({
           </Link>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {prompts.map((prompt) => (
-            <li
-              key={prompt.id}
-              className="border-foreground/10 hover:border-foreground/25 flex flex-col gap-2 rounded-lg border p-4 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <Link
-                  href={`/library/${prompt.id}`}
-                  className="font-medium hover:underline"
-                >
-                  {prompt.title}
-                </Link>
-                {prompt.visibility === "UNLISTED" ? (
-                  <span className="text-foreground/50 shrink-0 rounded-full border border-current px-2 py-0.5 text-[11px] font-medium">
-                    Shared
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-foreground/50 line-clamp-2 flex-1 text-sm">
-                {prompt.body}
-              </p>
-              <span className="text-foreground/40 text-xs">
-                Updated {dateFmt.format(prompt.updatedAt)}
-              </span>
-              <div className="flex items-center gap-2 pt-1">
-                <Link
-                  href={`/library/${prompt.id}`}
-                  className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                >
-                  Open
-                </Link>
-                <CopyButton
-                  text={prompt.body}
-                  className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                />
-                <Link
-                  href={`/library/${prompt.id}/edit`}
-                  className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                >
-                  Edit
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <PromptList prompts={cards} folders={folderOptions} />
       )}
 
       {pageCount > 1 ? (

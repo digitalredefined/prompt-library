@@ -1,4 +1,5 @@
 import { FolderSidebar } from "@/components/folder-sidebar";
+import { LibraryDndProvider } from "@/components/library-dnd";
 import { listFoldersWithCounts } from "@/lib/folders";
 import { countPrompts } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
@@ -24,13 +25,15 @@ export default async function LibraryLayout({
   ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col md:flex-row">
-      <FolderSidebar
-        folders={folders}
-        totalCount={totalCount}
-        unfiledCount={unfiledCount}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
+    <LibraryDndProvider>
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col md:flex-row">
+        <FolderSidebar
+          folders={folders}
+          totalCount={totalCount}
+          unfiledCount={unfiledCount}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      </div>
+    </LibraryDndProvider>
   );
 }
