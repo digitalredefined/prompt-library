@@ -87,6 +87,16 @@ enum PromptSource {
   AI
 }
 
+/// Who can read a prompt beyond its owner. Foundational sharing model (DIG-13);
+/// richer team/ACL sharing can extend this later.
+enum PromptVisibility {
+  /// Owner only — the default. Every owner-scoped query enforces this.
+  PRIVATE
+  /// Anyone holding the read-only share link (see `shareSlug`). Not listed
+  /// anywhere publicly; access is by unguessable slug only.
+  UNLISTED
+}
+
 model Prompt {
   id        String   @id @default(cuid())
   title     String
@@ -96,6 +106,12 @@ model Prompt {
   metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// Access control. PRIVATE by default; UNLISTED exposes read-only via shareSlug.
+  visibility PromptVisibility @default(PRIVATE)
+  /// Opaque, unguessable slug for the read-only share link. Null unless sharing
+  /// is enabled; unique so a slug resolves to exactly one prompt.
+  shareSlug  String?          @unique
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
