@@ -1,6 +1,12 @@
 import { randomBytes } from "node:crypto";
 
-import { Prisma, PromptVisibility, type Prompt } from "@prisma/client";
+import {
+  Prisma,
+  PromptSource,
+  PromptVisibility,
+  type Prompt,
+  type PromptVersion,
+} from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
@@ -133,10 +139,15 @@ export function getPrompt(userId: string, id: string): Promise<Prompt | null> {
 
 // --- Writes (owner-scoped) --------------------------------------------------
 
-/** Create a prompt owned by `userId`. Ignores any caller-supplied owner. */
+/**
+ * Create a prompt owned by `userId`. Ignores any caller-supplied owner and
+ * captures an initial version snapshot (DIG-20). `source` marks whether the
+ * content is a manual edit or an AI optimization (M6).
+ */
 export async function createPrompt(
   userId: string,
   input: CreatePromptInput,
+  source: PromptSource = PromptSource.MANUAL,
 ): Promise<Prompt> {
   const data = createPromptSchema.parse(input);
   await assertFolderOwned(userId, data.folderId);
@@ -153,6 +164,15 @@ export async function createPrompt(
       ...(data.metadata != null
         ? { metadata: data.metadata as Prisma.InputJsonValue }
         : {}),
+      // Initial history entry, atomic with the prompt row.
+      versions: {
+        create: {
+          title: data.title,
+          body: data.body,
+          notes: data.notes ?? null,
+          source,
+        },
+      },
     },
   });
 }
@@ -165,14 +185,29 @@ export async function updatePrompt(
   userId: string,
   id: string,
   input: UpdatePromptInput,
+  source: PromptSource = PromptSource.MANUAL,
 ): Promise<Prompt | null> {
   const data = updatePromptSchema.parse(input);
   if ("folderId" in data) {
     await assertFolderOwned(userId, data.folderId);
   }
 
+  // Fetch first so ownership is enforced (foreign id → null) and we can detect
+  // whether the saved content actually changed before snapshotting a version.
+  const existing = await getPrompt(userId, id);
+  if (!existing) return null;
+
+  const nextTitle = data.title ?? existing.title;
+  const nextBody = data.body ?? existing.body;
+  const nextNotes =
+    data.notes !== undefined ? (data.notes ?? null) : existing.notes;
+  const contentChanged =
+    nextTitle !== existing.title ||
+    nextBody !== existing.body ||
+    nextNotes !== existing.notes;
+
   // Build the patch explicitly so only provided fields change.
-  const patch: Prisma.PromptUncheckedUpdateManyInput = {};
+  const patch: Prisma.PromptUncheckedUpdateInput = {};
   if (data.title !== undefined) patch.title = data.title;
   if (data.body !== undefined) patch.body = data.body;
   if (data.notes !== undefined) patch.notes = data.notes ?? null;
@@ -184,13 +219,15 @@ export async function updatePrompt(
         : (data.metadata as Prisma.InputJsonValue);
   }
 
-  // Scope the write by ownerId so a foreign id updates zero rows.
-  const { count } = await prisma.prompt.updateMany({
-    where: { id, ownerId: userId },
-    data: patch,
-  });
-  if (count === 0) return null;
-  return getPrompt(userId, id);
+  // Snapshot the newly-saved content as a version when it changed (DIG-20).
+  if (contentChanged) {
+    patch.versions = {
+      create: { title: nextTitle, body: nextBody, notes: nextNotes, source },
+    };
+  }
+
+  // Ownership already verified above, so update by id (atomic with the snapshot).
+  return prisma.prompt.update({ where: { id: existing.id }, data: patch });
 }
 
 /** Delete a prompt the user owns. Returns true if a row was removed. */
@@ -265,4 +302,63 @@ export async function getSharedPrompt(
 
   const { owner, ...rest } = prompt;
   return { ...rest, ownerName: owner.name };
+}
+
+// --- Version history (DIG-20) ----------------------------------------------
+
+/** List an owned prompt's versions, newest first. Empty if not owned. */
+export async function listPromptVersions(
+  userId: string,
+  promptId: string,
+): Promise<PromptVersion[]> {
+  const prompt = await getPrompt(userId, promptId);
+  if (!prompt) return [];
+  return prisma.promptVersion.findMany({
+    where: { promptId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/** Fetch one version of an owned prompt, or null if not owned / not found. */
+export async function getPromptVersion(
+  userId: string,
+  promptId: string,
+  versionId: string,
+): Promise<PromptVersion | null> {
+  const prompt = await getPrompt(userId, promptId);
+  if (!prompt) return null;
+  return prisma.promptVersion.findFirst({
+    where: { id: versionId, promptId },
+  });
+}
+
+/**
+ * Restore an owned prompt to a previous version: apply that version's content
+ * and record the restore as a new MANUAL version, so history stays append-only.
+ * Returns the updated prompt, or null if the prompt/version isn't owned/found.
+ */
+export async function restorePromptVersion(
+  userId: string,
+  promptId: string,
+  versionId: string,
+): Promise<Prompt | null> {
+  const version = await getPromptVersion(userId, promptId, versionId);
+  if (!version) return null;
+
+  return prisma.prompt.update({
+    where: { id: promptId },
+    data: {
+      title: version.title,
+      body: version.body,
+      notes: version.notes,
+      versions: {
+        create: {
+          title: version.title,
+          body: version.body,
+          notes: version.notes,
+          source: PromptSource.MANUAL,
+        },
+      },
+    },
+  });
 }

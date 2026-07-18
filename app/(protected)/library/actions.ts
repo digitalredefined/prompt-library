@@ -11,6 +11,7 @@ import {
   deletePrompt,
   disableSharing,
   enableSharing,
+  restorePromptVersion,
   updatePrompt,
 } from "@/lib/prompts";
 import type { FormState } from "./form-state";
@@ -106,4 +107,15 @@ export async function setSharingAction(
     await disableSharing(user.id, id);
   }
   revalidatePath(`/library/${id}`);
+}
+
+export async function restoreVersionAction(
+  promptId: string,
+  versionId: string,
+): Promise<void> {
+  const user = await requireUser();
+  await restorePromptVersion(user.id, promptId, versionId);
+  revalidatePath("/library");
+  revalidatePath(`/library/${promptId}`);
+  redirect(`/library/${promptId}`);
 }
