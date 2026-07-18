@@ -101,6 +101,22 @@ user delete.
 Each Linear issue has acceptance criteria — treat them as the definition of done.
 Use `mcp__claude_ai_Linear__get_issue` with the issue ID (e.g. `DIG-7`) to read them.
 
+### Linear issue workflow (keep the tracker in sync)
+
+When working a DIG-* issue, drive its status in Linear as you go — don't rely on
+Claude Code's internal task list, which is session-local and invisible in Linear:
+
+1. **Start:** move the issue to **In Progress** (`save_issue` with `state`) before
+   writing code, and use its `gitBranchName` for the feature branch.
+2. **Progress updates go in the issue as comments** (`save_comment` with `issueId`),
+   not just in the internal task list — post meaningful checkpoints, decisions, and
+   the final summary there so the history lives with the issue.
+3. **Finish:** open a PR, attach it to the issue (`save_issue` `links`), post the
+   verification summary as a comment, and move the issue to **In Review** (→ **Done**
+   once merged).
+
+Statuses: Backlog · Todo · In Progress · In Review · Done · Canceled.
+
 ## Claude / Anthropic API notes
 
 The optimization feature calls Claude server-side. When implementing it, default to
