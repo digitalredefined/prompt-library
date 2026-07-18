@@ -12,27 +12,45 @@ import { z } from "zod";
  * Set `SKIP_ENV_VALIDATION=1` to bypass validation (e.g. for lint/typecheck
  * steps in CI that never touch the database).
  */
-const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
+const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
 
-  // --- Database (required) ---
-  DATABASE_URL: z.url(),
+    // --- Database (required) ---
+    DATABASE_URL: z.url(),
 
-  // --- Auth.js (required from M2 / DIG-11 onward) ---
-  // Generate a secret with `npx auth secret` or `openssl rand -base64 32`.
-  AUTH_SECRET: z.string().min(1).optional(),
-  AUTH_GOOGLE_ID: z.string().min(1).optional(),
-  AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
-  // Canonical app URL for production OAuth callbacks, e.g. https://example.com.
-  AUTH_URL: z.url().optional(),
-  // Required behind some proxies if Auth.js cannot infer the trusted host.
-  AUTH_TRUST_HOST: z.enum(["true", "false"]).optional(),
+    // --- Auth.js (required from M2 / DIG-11 onward) ---
+    // Generate a secret with `npx auth secret` or `openssl rand -base64 32`.
+    AUTH_SECRET: z.string().min(1).optional(),
+    // Compatibility aliases accepted by Auth.js / older NextAuth docs.
+    NEXTAUTH_SECRET: z.string().min(1).optional(),
+    AUTH_GOOGLE_ID: z.string().min(1).optional(),
+    AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
+    // Canonical app URL for production OAuth callbacks, e.g. https://example.com.
+    AUTH_URL: z.url().optional(),
+    NEXTAUTH_URL: z.url().optional(),
+    // Required behind some proxies if Auth.js cannot infer the trusted host.
+    AUTH_TRUST_HOST: z.enum(["true", "false"]).optional(),
 
-  // --- Anthropic Claude API (required from M6 / DIG-30 onward) ---
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-});
+    // --- Anthropic Claude API (required from M6 / DIG-30 onward) ---
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== "production") {
+      return;
+    }
+
+    if (!env.AUTH_SECRET && !env.NEXTAUTH_SECRET) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_SECRET"],
+        message:
+          "Required in production. Set AUTH_SECRET (preferred) or NEXTAUTH_SECRET in your Vercel Environment Variables.",
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

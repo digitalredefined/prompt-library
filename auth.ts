@@ -19,7 +19,7 @@ import { prisma } from "@/lib/prisma";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
-  secret: env.AUTH_SECRET ?? env.NEXTAUTH_SECRET,
+  secret: env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   providers: [Google],
   trustHost: env.AUTH_TRUST_HOST === "true" || Boolean(process.env.VERCEL),
   pages: {

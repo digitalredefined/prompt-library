@@ -123,15 +123,15 @@ project is linked. First-time setup:
 4. **Set environment variables** in Vercel _Project → Settings → Environment
    Variables_ (Production + Preview), per [`.env.example`](./.env.example):
    - `DATABASE_URL` (required)
-   - `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` (from M2)
-   - `AUTH_URL` (recommended in production; use your deployed `https://...` URL)
+   - `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` (from M2). `AUTH_SECRET` is required in production; `NEXTAUTH_SECRET` is accepted as a legacy alias if already configured.
+   - `AUTH_URL` (recommended in production; use your deployed `https://...` URL). `NEXTAUTH_URL` is accepted as a legacy alias if already configured.
    - `AUTH_TRUST_HOST` (set to `true` if Auth.js logs `UntrustedHost` / `Host must be trusted` behind Vercel or another proxy)
    - `ANTHROPIC_API_KEY` (from M6)
 5. **Configure Google OAuth for deployed sign-in.** In Google Cloud Console, add your production origin (for example `https://your-domain.com`) and callback URL (`https://your-domain.com/api/auth/callback/google`). Keep the localhost origin/callback for local development.
 6. **Run migrations against production** before/at deploy: `npm run db:deploy`
    (`prisma migrate deploy`) with the production `DATABASE_URL`.
 
-For local development, put these values in `.env`. For deployed Vercel preview/production builds, put them in Vercel **Project → Settings → Environment Variables**; a local `.env` file is not uploaded to Vercel.
+Environment variable names are case-sensitive: use `DATABASE_URL` exactly, not `database_url`. For local development, put these values in `.env`. For deployed Vercel preview/production builds, put them in Vercel **Project → Settings → Environment Variables**; a local `.env` file is not uploaded to Vercel. If Vercel logs `MissingSecret: Please define a secret`, generate a value with `npx auth secret` or `openssl rand -base64 32`, add it as `AUTH_SECRET` in Vercel for the affected Production/Preview environment, then redeploy.
 
 After linking, every PR gets a **preview deploy** and merges to `main` deploy to
 **production** automatically.
