@@ -4,6 +4,16 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 
 import { prisma } from "@/lib/prisma";
 
+const useSecureAuthCookies = process.env.NODE_ENV === "production";
+const authCookiePrefix = useSecureAuthCookies ? "__Secure-" : "";
+const authCheckCookieOptions = {
+  httpOnly: true,
+  sameSite: useSecureAuthCookies ? "none" : "lax",
+  path: "/",
+  secure: useSecureAuthCookies,
+  maxAge: 60 * 15,
+} as const;
+
 /**
  * Auth.js (NextAuth v5) configuration.
  *
@@ -18,7 +28,31 @@ import { prisma } from "@/lib/prisma";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
-  providers: [Google],
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  providers: [
+    Google({
+      // Vercel callback requests have been losing/mangling the PKCE verifier
+      // cookie, which causes Auth.js to reject otherwise valid Google OAuth
+      // callbacks with InvalidCheck. Keep the CSRF state check while avoiding
+      // the failing PKCE cookie round-trip for this confidential web client.
+      checks: ["state"],
+    }),
+  ],
+  cookies: {
+    // OAuth check cookies must survive the cross-site Google -> app callback.
+    // SameSite=None is only used for secure production deployments; local HTTP
+    // development keeps Auth.js-compatible lax cookies.
+    pkceCodeVerifier: {
+      name: `${authCookiePrefix}authjs.pkce.code_verifier`,
+      options: authCheckCookieOptions,
+    },
+    state: {
+      name: `${authCookiePrefix}authjs.state`,
+      options: authCheckCookieOptions,
+    },
+  },
+  trustHost:
+    process.env.AUTH_TRUST_HOST === "true" || Boolean(process.env.VERCEL),
   pages: {
     signIn: "/signin",
   },
