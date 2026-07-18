@@ -1,8 +1,11 @@
 import Link from "next/link";
 
+import { LibraryFilters } from "@/components/library-filters";
 import { PromptList, type PromptCard } from "@/components/prompt-list";
-import { getFolder, listFolders } from "@/lib/folders";
+import { listCategories } from "@/lib/categories";
+import { listFolders } from "@/lib/folders";
 import { countPrompts, listPromptsWithLabels } from "@/lib/prompts";
+import { listTags } from "@/lib/tags";
 import { requireUser } from "@/lib/session";
 
 export const metadata = {
@@ -17,46 +20,62 @@ const dateFmt = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
+/** Normalize a repeatable search param to a string array. */
+function toArray(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 export default async function LibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; folderId?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    folderId?: string;
+    categoryId?: string | string[];
+    tag?: string | string[];
+  }>;
 }) {
   const user = await requireUser("/library");
-  const { page: pageParam, folderId: folderParam } = await searchParams;
+  const {
+    page: pageParam,
+    folderId: folderParam,
+    categoryId: categoryParam,
+    tag: tagParam,
+  } = await searchParams;
 
-  // `folderId` absent → all prompts; "none" → the Unfiled (root) bucket;
-  // any other value → that folder. `listPrompts`/`countPrompts` read `undefined`
-  // as "no filter" and `null` as "no folder".
+  // `folderId` absent → all folders; "none" → the Unfiled (root) bucket; any
+  // other value → that folder. Category/tag filters are repeatable and combine
+  // with the folder (and each other) as AND — see `buildPromptWhere`/DIG-26.
   const folderFilter =
     folderParam === undefined
       ? undefined
       : folderParam === "none"
         ? null
         : folderParam;
+  const categoryIds = toArray(categoryParam);
+  const tagIds = toArray(tagParam);
+  const filter = { folderId: folderFilter, categoryIds, tagIds };
+  const filtersActive =
+    folderParam !== undefined || categoryIds.length > 0 || tagIds.length > 0;
 
-  // Resolve the active folder's name for the heading (also confirms ownership;
-  // an unowned/missing id yields no name and an empty list).
-  const activeFolder =
-    typeof folderFilter === "string"
-      ? await getFolder(user.id, folderFilter)
-      : null;
+  const [folders, categories, tags] = await Promise.all([
+    listFolders(user.id),
+    listCategories(user.id),
+    listTags(user.id),
+  ]);
 
-  const total = await countPrompts(user.id, { folderId: folderFilter });
+  const total = await countPrompts(user.id, filter);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
 
   const prompts = await listPromptsWithLabels(user.id, {
-    folderId: folderFilter,
+    ...filter,
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
   });
 
-  // Folder options for the "Move to…" menu (DIG-23).
-  const folderOptions = (await listFolders(user.id)).map((f) => ({
-    id: f.id,
-    name: f.name,
-  }));
+  const folderOptions = folders.map((f) => ({ id: f.id, name: f.name }));
 
   // Serializable card shape for the client list (drag source + move menu).
   const cards: PromptCard[] = prompts.map((p) => ({
@@ -74,41 +93,29 @@ export default async function LibraryPage({
     tags: p.tags.map((t) => ({ id: t.id, name: t.name })),
   }));
 
-  // Preserve the active folder filter across pagination links.
+  // Preserve every active filter across pagination links.
   const hrefForPage = (p: number) => {
     const params = new URLSearchParams();
     if (folderParam) params.set("folderId", folderParam);
+    for (const id of categoryIds) params.append("categoryId", id);
+    for (const id of tagIds) params.append("tag", id);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `/library?${qs}` : "/library";
   };
 
-  const scopeLabel =
-    folderParam === undefined
-      ? null
-      : folderParam === "none"
-        ? "Unfiled"
-        : (activeFolder?.name ?? "Folder");
-
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {scopeLabel ?? "Your library"}
-          </h1>
-          <p className="text-foreground/60 flex items-center gap-2 text-sm">
-            <span>
-              {total} {total === 1 ? "prompt" : "prompts"}
-            </span>
-            {scopeLabel ? (
-              <Link
-                href="/library"
-                className="underline underline-offset-4 hover:no-underline"
-              >
-                Clear filter
-              </Link>
-            ) : null}
+          <h1 className="text-3xl font-bold tracking-tight">Your library</h1>
+          <p className="text-foreground/60 text-sm">
+            {total} {total === 1 ? "prompt" : "prompts"}
+            {filtersActive
+              ? total === 1
+                ? " matches your filters"
+                : " match your filters"
+              : ""}
           </p>
         </div>
         <Link
@@ -119,11 +126,21 @@ export default async function LibraryPage({
         </Link>
       </div>
 
+      <LibraryFilters
+        folders={folderOptions}
+        categories={categories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
+        tags={tags.map((t) => ({ id: t.id, name: t.name }))}
+      />
+
       {total === 0 ? (
         <div className="border-foreground/10 bg-foreground/[0.03] flex flex-col items-start gap-3 rounded-lg border p-6">
           <p className="text-foreground/70 text-sm">
-            {scopeLabel
-              ? `No prompts in ${scopeLabel}.`
+            {filtersActive
+              ? "No prompts match these filters."
               : "No prompts yet. Create your first one to get started."}
           </p>
           <Link

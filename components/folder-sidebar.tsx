@@ -95,6 +95,23 @@ const countBase = "text-foreground/40 text-xs tabular-nums";
 const iconBtn =
   "text-foreground/40 hover:text-foreground rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100";
 
+/**
+ * Build a "/library" href that sets (or clears, when `value` is null) the folder
+ * filter while preserving any active category/tag filters (DIG-26) and resetting
+ * pagination. `value` is a folder id, "none" for Unfiled, or null for All prompts.
+ */
+function useFolderHref() {
+  const params = useSearchParams();
+  return (value: string | null) => {
+    const p = new URLSearchParams(params.toString());
+    p.delete("page");
+    if (value === null) p.delete("folderId");
+    else p.set("folderId", value);
+    const qs = p.toString();
+    return qs ? `/library?${qs}` : "/library";
+  };
+}
+
 export function FolderSidebar({
   folders,
   totalCount,
@@ -106,6 +123,7 @@ export function FolderSidebar({
 }) {
   const tree = buildTree(folders);
   const activeFolderId = useSearchParams().get("folderId");
+  const hrefForFolder = useFolderHref();
   const [addingRoot, setAddingRoot] = useState(false);
 
   return (
@@ -113,9 +131,9 @@ export function FolderSidebar({
       aria-label="Folders"
       className="border-foreground/10 flex w-full flex-col gap-1 border-b p-4 md:w-64 md:shrink-0 md:border-r md:border-b-0"
     >
-      {/* All prompts — the unfiltered view. */}
+      {/* All prompts — clears the folder filter (keeps category/tag). */}
       <Link
-        href="/library"
+        href={hrefForFolder(null)}
         className={`${rowBase} ${
           activeFolderId === null
             ? "bg-foreground/10 font-medium"
@@ -174,9 +192,10 @@ export function FolderSidebar({
 /** The "Unfiled" (root) row — a filter link that also accepts prompt drops. */
 function UnfiledRow({ active, count }: { active: boolean; count: number }) {
   const { over, dropHandlers } = usePromptDrop(null);
+  const hrefForFolder = useFolderHref();
   return (
     <Link
-      href="/library?folderId=none"
+      href={hrefForFolder("none")}
       {...dropHandlers}
       className={`${rowBase} mt-1 ${over ? dropRing : ""} ${
         active ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
@@ -203,6 +222,7 @@ function FolderNode({
   const [addingChild, setAddingChild] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { over, dropHandlers } = usePromptDrop(node.id);
+  const hrefForFolder = useFolderHref();
 
   const hasChildren = node.children.length > 0;
   const active = activeFolderId === node.id;
@@ -238,7 +258,7 @@ function FolderNode({
           )}
 
           <Link
-            href={`/library?folderId=${node.id}`}
+            href={hrefForFolder(node.id)}
             className={linkBase}
             aria-current={active ? "page" : undefined}
           >

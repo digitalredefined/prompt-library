@@ -146,6 +146,40 @@ function generateShareSlug(): string {
 
 // --- Reads (owner-scoped) ---------------------------------------------------
 
+/** Filters that narrow a prompt listing. All facets combine with AND (DIG-26). */
+export type PromptFilter = {
+  /** `undefined` = any folder; `null` = the library root; a string = that folder. */
+  folderId?: string | null;
+  /** Prompt must have every one of these categories. */
+  categoryIds?: string[];
+  /** Prompt must have every one of these tags. */
+  tagIds?: string[];
+};
+
+/**
+ * Build the owner-scoped `where` for a prompt listing. Folder, categories, and
+ * tags all combine with AND: a prompt matches only if it's in the folder (when
+ * set) AND carries every selected category AND every selected tag.
+ */
+function buildPromptWhere(
+  userId: string,
+  filter: PromptFilter,
+): Prisma.PromptWhereInput {
+  const and: Prisma.PromptWhereInput[] = [];
+  for (const id of filter.categoryIds ?? []) {
+    and.push({ categories: { some: { id } } });
+  }
+  for (const id of filter.tagIds ?? []) {
+    and.push({ tags: { some: { id } } });
+  }
+  return {
+    ownerId: userId,
+    // `folderId: undefined` means "no filter"; `null` means the root level.
+    ...(filter.folderId !== undefined ? { folderId: filter.folderId } : {}),
+    ...(and.length ? { AND: and } : {}),
+  };
+}
+
 /** List the user's prompts, newest first. Optionally filter to one folder. */
 export function listPrompts(
   userId: string,
@@ -163,17 +197,12 @@ export function listPrompts(
   });
 }
 
-/** Count the user's prompts (for pagination), optionally within one folder. */
+/** Count the user's prompts (for pagination), applying the given filters. */
 export function countPrompts(
   userId: string,
-  options: { folderId?: string | null } = {},
+  filter: PromptFilter = {},
 ): Promise<number> {
-  return prisma.prompt.count({
-    where: {
-      ownerId: userId,
-      ...(options.folderId !== undefined ? { folderId: options.folderId } : {}),
-    },
-  });
+  return prisma.prompt.count({ where: buildPromptWhere(userId, filter) });
 }
 
 /** Fetch one prompt the user owns, or null if it doesn't exist / isn't theirs. */
@@ -192,19 +221,20 @@ const labelInclude = {
   tags: { orderBy: { name: "asc" } },
 } satisfies Prisma.PromptInclude;
 
-/** Like `listPrompts`, but each prompt includes its categories and tags. */
+/**
+ * Like `listPrompts`, but each prompt includes its categories and tags, and the
+ * listing can be narrowed by folder + categories + tags (all AND, see DIG-26).
+ */
 export function listPromptsWithLabels(
   userId: string,
-  options: { folderId?: string | null; skip?: number; take?: number } = {},
+  options: PromptFilter & { skip?: number; take?: number } = {},
 ): Promise<PromptWithLabels[]> {
+  const { skip, take, ...filter } = options;
   return prisma.prompt.findMany({
-    where: {
-      ownerId: userId,
-      ...(options.folderId !== undefined ? { folderId: options.folderId } : {}),
-    },
+    where: buildPromptWhere(userId, filter),
     orderBy: { updatedAt: "desc" },
-    skip: options.skip,
-    take: options.take,
+    skip,
+    take,
     include: labelInclude,
   });
 }
