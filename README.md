@@ -37,7 +37,10 @@ Production uses a hosted Postgres provider (Neon is the intended target for
 Vercel's serverless runtime) — set its connection string as `DATABASE_URL`.
 
 The ORM is [Prisma](https://www.prisma.io/); the schema lives in
-`prisma/schema.prisma` and the client singleton in `lib/prisma.ts`.
+`prisma/schema.prisma` and the client singleton in `lib/prisma.ts`. Runtime
+environment variables are validated by server code as features use them; the
+Next.js config intentionally does not import app env validation so Vercel can
+complete builds before runtime-only secrets are exercised.
 
 **Migration workflow**
 

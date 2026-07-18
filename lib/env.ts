@@ -3,9 +3,10 @@ import { z } from "zod";
 /**
  * Typed, validated access to environment variables.
  *
- * Import `env` from `@/lib/env` instead of reading `process.env` directly, so
- * that missing/malformed configuration fails fast with a clear error rather
- * than surfacing as a confusing runtime bug.
+ * Prefer importing `env` from `@/lib/env` for app-owned configuration so
+ * missing/malformed values fail with a clear error. Framework integrations may
+ * still read their standard environment variables directly when that avoids
+ * build-time coupling.
  *
  * Variables that a given feature needs are marked optional here until the
  * milestone that introduces the feature makes them required (see comments).
