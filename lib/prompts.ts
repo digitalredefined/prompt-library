@@ -4,12 +4,15 @@ import {
   Prisma,
   PromptSource,
   PromptVisibility,
+  type Category,
   type Prompt,
   type PromptVersion,
+  type Tag,
 } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { upsertTag } from "@/lib/tags";
 
 /**
  * Owner-scoped data-access layer for prompts (DIG-13).
@@ -55,6 +58,10 @@ export const createPromptSchema = z.object({
   notes: z.string().max(2000).nullish(),
   folderId: z.string().min(1).nullish(),
   metadata: metadataSchema.nullish(),
+  // Classification (DIG-25). Categories are referenced by id (must be owned);
+  // tags by name (created on the fly / reused via upsert).
+  categoryIds: z.array(z.string().min(1)).optional(),
+  tagNames: z.array(z.string().trim().min(1).max(50)).optional(),
 });
 
 export const updatePromptSchema = createPromptSchema.partial();
@@ -93,6 +100,43 @@ async function assertFolderOwned(
   if (!folder) {
     throw new OwnershipError("Folder not found");
   }
+}
+
+/**
+ * Ensure every id in `categoryIds` names a category owned by `userId`. Prevents
+ * a user from tagging a prompt with someone else's category. Empty/undefined is
+ * always allowed.
+ */
+async function assertCategoriesOwned(
+  userId: string,
+  categoryIds: string[] | undefined,
+): Promise<void> {
+  if (!categoryIds || categoryIds.length === 0) return;
+  const unique = [...new Set(categoryIds)];
+  const count = await prisma.category.count({
+    where: { id: { in: unique }, ownerId: userId },
+  });
+  if (count !== unique.length) {
+    throw new OwnershipError("Category not found");
+  }
+}
+
+/**
+ * Resolve free-form tag names to owned tag ids, creating (or reusing) each via
+ * `upsertTag`. Names are trimmed and de-duplicated first. Returns the ids to
+ * connect to a prompt.
+ */
+async function resolveTagIds(
+  userId: string,
+  tagNames: string[] | undefined,
+): Promise<string[]> {
+  const unique = [
+    ...new Set((tagNames ?? []).map((n) => n.trim()).filter(Boolean)),
+  ];
+  const tags = await Promise.all(
+    unique.map((name) => upsertTag(userId, { name })),
+  );
+  return tags.map((t) => t.id);
 }
 
 /** Generate an unguessable, URL-safe slug for a share link. */
@@ -137,6 +181,45 @@ export function getPrompt(userId: string, id: string): Promise<Prompt | null> {
   return prisma.prompt.findFirst({ where: { id, ownerId: userId } });
 }
 
+/** A prompt with its assigned categories and tags (DIG-25), each sorted by name. */
+export type PromptWithLabels = Prompt & {
+  categories: Category[];
+  tags: Tag[];
+};
+
+const labelInclude = {
+  categories: { orderBy: { name: "asc" } },
+  tags: { orderBy: { name: "asc" } },
+} satisfies Prisma.PromptInclude;
+
+/** Like `listPrompts`, but each prompt includes its categories and tags. */
+export function listPromptsWithLabels(
+  userId: string,
+  options: { folderId?: string | null; skip?: number; take?: number } = {},
+): Promise<PromptWithLabels[]> {
+  return prisma.prompt.findMany({
+    where: {
+      ownerId: userId,
+      ...(options.folderId !== undefined ? { folderId: options.folderId } : {}),
+    },
+    orderBy: { updatedAt: "desc" },
+    skip: options.skip,
+    take: options.take,
+    include: labelInclude,
+  });
+}
+
+/** Like `getPrompt`, but includes the prompt's categories and tags. */
+export function getPromptWithLabels(
+  userId: string,
+  id: string,
+): Promise<PromptWithLabels | null> {
+  return prisma.prompt.findFirst({
+    where: { id, ownerId: userId },
+    include: labelInclude,
+  });
+}
+
 // --- Writes (owner-scoped) --------------------------------------------------
 
 /**
@@ -151,6 +234,8 @@ export async function createPrompt(
 ): Promise<Prompt> {
   const data = createPromptSchema.parse(input);
   await assertFolderOwned(userId, data.folderId);
+  await assertCategoriesOwned(userId, data.categoryIds);
+  const tagIds = await resolveTagIds(userId, data.tagNames);
 
   return prisma.prompt.create({
     data: {
@@ -163,6 +248,13 @@ export async function createPrompt(
       // Prisma's JSON input type when present.
       ...(data.metadata != null
         ? { metadata: data.metadata as Prisma.InputJsonValue }
+        : {}),
+      // Classification (DIG-25): categories by (owned) id, tags by resolved id.
+      ...(data.categoryIds?.length
+        ? { categories: { connect: data.categoryIds.map((id) => ({ id })) } }
+        : {}),
+      ...(tagIds.length
+        ? { tags: { connect: tagIds.map((id) => ({ id })) } }
         : {}),
       // Initial history entry, atomic with the prompt row.
       versions: {
@@ -191,6 +283,9 @@ export async function updatePrompt(
   if ("folderId" in data) {
     await assertFolderOwned(userId, data.folderId);
   }
+  if (data.categoryIds !== undefined) {
+    await assertCategoriesOwned(userId, data.categoryIds);
+  }
 
   // Fetch first so ownership is enforced (foreign id → null) and we can detect
   // whether the saved content actually changed before snapshotting a version.
@@ -217,6 +312,15 @@ export async function updatePrompt(
       data.metadata === null
         ? Prisma.DbNull
         : (data.metadata as Prisma.InputJsonValue);
+  }
+  // Classification (DIG-25): `set` replaces the whole relation, so passing an
+  // empty array clears it. Only touched when the field is provided.
+  if (data.categoryIds !== undefined) {
+    patch.categories = { set: data.categoryIds.map((id) => ({ id })) };
+  }
+  if (data.tagNames !== undefined) {
+    const tagIds = await resolveTagIds(userId, data.tagNames);
+    patch.tags = { set: tagIds.map((id) => ({ id })) };
   }
 
   // Snapshot the newly-saved content as a version when it changed (DIG-20).

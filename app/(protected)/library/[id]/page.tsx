@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 
 import { CopyButton } from "@/components/copy-button";
 import { DeletePromptButton } from "@/components/delete-prompt-button";
+import { CategoryChip, TagChip } from "@/components/labels";
 import { listFolders } from "@/lib/folders";
-import { getPrompt } from "@/lib/prompts";
+import { getPromptWithLabels } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
 import { deletePromptAction, setSharingAction } from "../actions";
 
@@ -32,7 +33,7 @@ export default async function PromptDetailPage({
 }) {
   const { id } = await params;
   const user = await requireUser(`/library/${id}`);
-  const prompt = await getPrompt(user.id, id);
+  const prompt = await getPromptWithLabels(user.id, id);
   if (!prompt) notFound();
 
   const folderName = prompt.folderId
@@ -92,6 +93,17 @@ export default async function PromptDetailPage({
           Version history
         </Link>
       </div>
+
+      {prompt.categories.length > 0 || prompt.tags.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {prompt.categories.map((c) => (
+            <CategoryChip key={c.id} name={c.name} color={c.color} />
+          ))}
+          {prompt.tags.map((t) => (
+            <TagChip key={t.id} name={t.name} />
+          ))}
+        </div>
+      ) : null}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-foreground/60 text-xs font-medium tracking-wide uppercase">

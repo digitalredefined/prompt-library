@@ -36,6 +36,17 @@ function readPromptForm(formData: FormData) {
     notes: notes ? notes : null,
     // Empty string from the "No folder" option means the library root.
     folderId: folderId ? folderId : null,
+    // Classification (DIG-25). Checkboxes post multiple `categoryIds`; the tag
+    // input posts one `tagNames` per chip. Always send arrays (even empty) so an
+    // edit that clears all categories/tags is applied.
+    categoryIds: formData
+      .getAll("categoryIds")
+      .map((v) => String(v).trim())
+      .filter(Boolean),
+    tagNames: formData
+      .getAll("tagNames")
+      .map((v) => String(v).trim())
+      .filter(Boolean),
   };
 }
 

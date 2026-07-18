@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
+import { CategoryChip, TagChip } from "@/components/labels";
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
 
 /** Minimal, serializable prompt shape the list needs (built on the server). */
@@ -14,6 +15,8 @@ export type PromptCard = {
   folderId: string | null;
   shared: boolean;
   updatedLabel: string;
+  categories: { id: string; name: string; color: string | null }[];
+  tags: { id: string; name: string }[];
 };
 
 export type FolderOption = { id: string; name: string };
@@ -71,6 +74,16 @@ export function PromptList({
           <p className="text-foreground/50 line-clamp-2 flex-1 text-sm">
             {prompt.body}
           </p>
+          {prompt.categories.length > 0 || prompt.tags.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {prompt.categories.map((c) => (
+                <CategoryChip key={c.id} name={c.name} color={c.color} />
+              ))}
+              {prompt.tags.map((t) => (
+                <TagChip key={t.id} name={t.name} />
+              ))}
+            </div>
+          ) : null}
           <span className="text-foreground/40 text-xs">
             Updated {prompt.updatedLabel}
           </span>

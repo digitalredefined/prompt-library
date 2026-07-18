@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { PromptList, type PromptCard } from "@/components/prompt-list";
 import { getFolder, listFolders } from "@/lib/folders";
-import { countPrompts, listPrompts } from "@/lib/prompts";
+import { countPrompts, listPromptsWithLabels } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
 
 export const metadata = {
@@ -46,7 +46,7 @@ export default async function LibraryPage({
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
 
-  const prompts = await listPrompts(user.id, {
+  const prompts = await listPromptsWithLabels(user.id, {
     folderId: folderFilter,
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
@@ -66,6 +66,12 @@ export default async function LibraryPage({
     folderId: p.folderId,
     shared: p.visibility === "UNLISTED",
     updatedLabel: dateFmt.format(p.updatedAt),
+    categories: p.categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+    })),
+    tags: p.tags.map((t) => ({ id: t.id, name: t.name })),
   }));
 
   // Preserve the active folder filter across pagination links.
