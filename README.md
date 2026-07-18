@@ -61,15 +61,16 @@ issue; the current schema carries a placeholder model to bootstrap migrations.
 
 ## Scripts
 
-| Script                 | What it does                      |
-| ---------------------- | --------------------------------- |
-| `npm run dev`          | Start the local dev server        |
-| `npm run build`        | Production build                  |
-| `npm run start`        | Serve the production build        |
-| `npm run lint`         | Run ESLint                        |
-| `npm run typecheck`    | Type-check with `tsc --noEmit`    |
-| `npm run format`       | Format the codebase with Prettier |
-| `npm run format:check` | Check formatting without writing  |
+| Script                 | What it does                                      |
+| ---------------------- | ------------------------------------------------- |
+| `npm run dev`          | Start the local dev server                        |
+| `npm run build`        | Production build                                  |
+| `npm run vercel:build` | Apply production migrations, then build on Vercel |
+| `npm run start`        | Serve the production build                        |
+| `npm run lint`         | Run ESLint                                        |
+| `npm run typecheck`    | Type-check with `tsc --noEmit`                    |
+| `npm run format`       | Format the codebase with Prettier                 |
+| `npm run format:check` | Check formatting without writing                  |
 
 ## Project structure
 
@@ -132,7 +133,12 @@ project is linked. First-time setup:
    - `ANTHROPIC_API_KEY` (from M6)
 5. **Configure Google OAuth for deployed sign-in.** In Google Cloud Console, add your production origin (for example `https://your-domain.com`) and callback URL (`https://your-domain.com/api/auth/callback/google`). Keep the localhost origin/callback for local development.
 6. **Run migrations against production** before/at deploy: `npm run db:deploy`
-   (`prisma migrate deploy`) with the production `DATABASE_URL`.
+   (`prisma migrate deploy`) with the production `DATABASE_URL`. The committed
+   `vercel.json` also sets Vercel's build command to `npm run vercel:build`,
+   which runs `prisma migrate deploy` before `next build` so linked Vercel
+   databases receive committed migrations during deployment.
+
+Environment variable names are case-sensitive: use `DATABASE_URL` exactly, not `database_url`. For local development, put these values in `.env`. For deployed Vercel preview/production builds, put them in Vercel **Project → Settings → Environment Variables**; a local `.env` file is not uploaded to Vercel. If Vercel logs `MissingSecret: Please define a secret`, generate a value with `npx auth secret` or `openssl rand -base64 32`, add it as `AUTH_SECRET` in Vercel for the affected Production/Preview environment, then redeploy.
 
 Environment variable names are case-sensitive: use `DATABASE_URL` exactly, not `database_url`. For local development, put these values in `.env`. For deployed Vercel preview/production builds, put them in Vercel **Project → Settings → Environment Variables**; a local `.env` file is not uploaded to Vercel. If Vercel logs `MissingSecret: Please define a secret`, generate a value with `npx auth secret` or `openssl rand -base64 32`, add it as `AUTH_SECRET` in Vercel for the affected Production/Preview environment, then redeploy.
 
