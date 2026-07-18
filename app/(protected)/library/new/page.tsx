@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { PromptForm } from "@/components/prompt-form";
+import { listCategories } from "@/lib/categories";
 import { listFolders } from "@/lib/folders";
+import { listTags } from "@/lib/tags";
 import { requireUser } from "@/lib/session";
 import { createPromptAction } from "../actions";
 
@@ -11,7 +13,11 @@ export const metadata = {
 
 export default async function NewPromptPage() {
   const user = await requireUser("/library/new");
-  const folders = await listFolders(user.id);
+  const [folders, categories, tags] = await Promise.all([
+    listFolders(user.id),
+    listCategories(user.id),
+    listTags(user.id),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
@@ -28,6 +34,8 @@ export default async function NewPromptPage() {
       <PromptForm
         action={createPromptAction}
         folders={folders}
+        categories={categories}
+        tagSuggestions={tags.map((t) => t.name)}
         submitLabel="Create prompt"
         cancelHref="/library"
       />

@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PromptForm } from "@/components/prompt-form";
+import { listCategories } from "@/lib/categories";
 import { listFolders } from "@/lib/folders";
-import { getPrompt } from "@/lib/prompts";
+import { getPromptWithLabels } from "@/lib/prompts";
+import { listTags } from "@/lib/tags";
 import { requireUser } from "@/lib/session";
 import { updatePromptAction } from "../../actions";
 
@@ -18,9 +20,11 @@ export default async function EditPromptPage({
 }) {
   const { id } = await params;
   const user = await requireUser(`/library/${id}/edit`);
-  const [prompt, folders] = await Promise.all([
-    getPrompt(user.id, id),
+  const [prompt, folders, categories, tags] = await Promise.all([
+    getPromptWithLabels(user.id, id),
     listFolders(user.id),
+    listCategories(user.id),
+    listTags(user.id),
   ]);
 
   if (!prompt) notFound();
@@ -43,11 +47,15 @@ export default async function EditPromptPage({
       <PromptForm
         action={action}
         folders={folders}
+        categories={categories}
+        tagSuggestions={tags.map((t) => t.name)}
         initial={{
           title: prompt.title,
           body: prompt.body,
           notes: prompt.notes,
           folderId: prompt.folderId,
+          categoryIds: prompt.categories.map((c) => c.id),
+          tags: prompt.tags.map((t) => t.name),
         }}
         submitLabel="Save changes"
         cancelHref={`/library/${prompt.id}`}

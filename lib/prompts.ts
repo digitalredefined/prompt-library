@@ -4,12 +4,15 @@ import {
   Prisma,
   PromptSource,
   PromptVisibility,
+  type Category,
   type Prompt,
   type PromptVersion,
+  type Tag,
 } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { upsertTag } from "@/lib/tags";
 
 /**
  * Owner-scoped data-access layer for prompts (DIG-13).
@@ -55,6 +58,10 @@ export const createPromptSchema = z.object({
   notes: z.string().max(2000).nullish(),
   folderId: z.string().min(1).nullish(),
   metadata: metadataSchema.nullish(),
+  // Classification (DIG-25). Categories are referenced by id (must be owned);
+  // tags by name (created on the fly / reused via upsert).
+  categoryIds: z.array(z.string().min(1)).optional(),
+  tagNames: z.array(z.string().trim().min(1).max(50)).optional(),
 });
 
 export const updatePromptSchema = createPromptSchema.partial();
@@ -95,12 +102,83 @@ async function assertFolderOwned(
   }
 }
 
+/**
+ * Ensure every id in `categoryIds` names a category owned by `userId`. Prevents
+ * a user from tagging a prompt with someone else's category. Empty/undefined is
+ * always allowed.
+ */
+async function assertCategoriesOwned(
+  userId: string,
+  categoryIds: string[] | undefined,
+): Promise<void> {
+  if (!categoryIds || categoryIds.length === 0) return;
+  const unique = [...new Set(categoryIds)];
+  const count = await prisma.category.count({
+    where: { id: { in: unique }, ownerId: userId },
+  });
+  if (count !== unique.length) {
+    throw new OwnershipError("Category not found");
+  }
+}
+
+/**
+ * Resolve free-form tag names to owned tag ids, creating (or reusing) each via
+ * `upsertTag`. Names are trimmed and de-duplicated first. Returns the ids to
+ * connect to a prompt.
+ */
+async function resolveTagIds(
+  userId: string,
+  tagNames: string[] | undefined,
+): Promise<string[]> {
+  const unique = [
+    ...new Set((tagNames ?? []).map((n) => n.trim()).filter(Boolean)),
+  ];
+  const tags = await Promise.all(
+    unique.map((name) => upsertTag(userId, { name })),
+  );
+  return tags.map((t) => t.id);
+}
+
 /** Generate an unguessable, URL-safe slug for a share link. */
 function generateShareSlug(): string {
   return randomBytes(12).toString("base64url");
 }
 
 // --- Reads (owner-scoped) ---------------------------------------------------
+
+/** Filters that narrow a prompt listing. All facets combine with AND (DIG-26). */
+export type PromptFilter = {
+  /** `undefined` = any folder; `null` = the library root; a string = that folder. */
+  folderId?: string | null;
+  /** Prompt must have every one of these categories. */
+  categoryIds?: string[];
+  /** Prompt must have every one of these tags. */
+  tagIds?: string[];
+};
+
+/**
+ * Build the owner-scoped `where` for a prompt listing. Folder, categories, and
+ * tags all combine with AND: a prompt matches only if it's in the folder (when
+ * set) AND carries every selected category AND every selected tag.
+ */
+function buildPromptWhere(
+  userId: string,
+  filter: PromptFilter,
+): Prisma.PromptWhereInput {
+  const and: Prisma.PromptWhereInput[] = [];
+  for (const id of filter.categoryIds ?? []) {
+    and.push({ categories: { some: { id } } });
+  }
+  for (const id of filter.tagIds ?? []) {
+    and.push({ tags: { some: { id } } });
+  }
+  return {
+    ownerId: userId,
+    // `folderId: undefined` means "no filter"; `null` means the root level.
+    ...(filter.folderId !== undefined ? { folderId: filter.folderId } : {}),
+    ...(and.length ? { AND: and } : {}),
+  };
+}
 
 /** List the user's prompts, newest first. Optionally filter to one folder. */
 export function listPrompts(
@@ -119,22 +197,57 @@ export function listPrompts(
   });
 }
 
-/** Count the user's prompts (for pagination), optionally within one folder. */
+/** Count the user's prompts (for pagination), applying the given filters. */
 export function countPrompts(
   userId: string,
-  options: { folderId?: string | null } = {},
+  filter: PromptFilter = {},
 ): Promise<number> {
-  return prisma.prompt.count({
-    where: {
-      ownerId: userId,
-      ...(options.folderId !== undefined ? { folderId: options.folderId } : {}),
-    },
-  });
+  return prisma.prompt.count({ where: buildPromptWhere(userId, filter) });
 }
 
 /** Fetch one prompt the user owns, or null if it doesn't exist / isn't theirs. */
 export function getPrompt(userId: string, id: string): Promise<Prompt | null> {
   return prisma.prompt.findFirst({ where: { id, ownerId: userId } });
+}
+
+/** A prompt with its assigned categories and tags (DIG-25), each sorted by name. */
+export type PromptWithLabels = Prompt & {
+  categories: Category[];
+  tags: Tag[];
+};
+
+const labelInclude = {
+  categories: { orderBy: { name: "asc" } },
+  tags: { orderBy: { name: "asc" } },
+} satisfies Prisma.PromptInclude;
+
+/**
+ * Like `listPrompts`, but each prompt includes its categories and tags, and the
+ * listing can be narrowed by folder + categories + tags (all AND, see DIG-26).
+ */
+export function listPromptsWithLabels(
+  userId: string,
+  options: PromptFilter & { skip?: number; take?: number } = {},
+): Promise<PromptWithLabels[]> {
+  const { skip, take, ...filter } = options;
+  return prisma.prompt.findMany({
+    where: buildPromptWhere(userId, filter),
+    orderBy: { updatedAt: "desc" },
+    skip,
+    take,
+    include: labelInclude,
+  });
+}
+
+/** Like `getPrompt`, but includes the prompt's categories and tags. */
+export function getPromptWithLabels(
+  userId: string,
+  id: string,
+): Promise<PromptWithLabels | null> {
+  return prisma.prompt.findFirst({
+    where: { id, ownerId: userId },
+    include: labelInclude,
+  });
 }
 
 // --- Writes (owner-scoped) --------------------------------------------------
@@ -151,6 +264,8 @@ export async function createPrompt(
 ): Promise<Prompt> {
   const data = createPromptSchema.parse(input);
   await assertFolderOwned(userId, data.folderId);
+  await assertCategoriesOwned(userId, data.categoryIds);
+  const tagIds = await resolveTagIds(userId, data.tagNames);
 
   return prisma.prompt.create({
     data: {
@@ -163,6 +278,13 @@ export async function createPrompt(
       // Prisma's JSON input type when present.
       ...(data.metadata != null
         ? { metadata: data.metadata as Prisma.InputJsonValue }
+        : {}),
+      // Classification (DIG-25): categories by (owned) id, tags by resolved id.
+      ...(data.categoryIds?.length
+        ? { categories: { connect: data.categoryIds.map((id) => ({ id })) } }
+        : {}),
+      ...(tagIds.length
+        ? { tags: { connect: tagIds.map((id) => ({ id })) } }
         : {}),
       // Initial history entry, atomic with the prompt row.
       versions: {
@@ -191,6 +313,9 @@ export async function updatePrompt(
   if ("folderId" in data) {
     await assertFolderOwned(userId, data.folderId);
   }
+  if (data.categoryIds !== undefined) {
+    await assertCategoriesOwned(userId, data.categoryIds);
+  }
 
   // Fetch first so ownership is enforced (foreign id → null) and we can detect
   // whether the saved content actually changed before snapshotting a version.
@@ -217,6 +342,15 @@ export async function updatePrompt(
       data.metadata === null
         ? Prisma.DbNull
         : (data.metadata as Prisma.InputJsonValue);
+  }
+  // Classification (DIG-25): `set` replaces the whole relation, so passing an
+  // empty array clears it. Only touched when the field is provided.
+  if (data.categoryIds !== undefined) {
+    patch.categories = { set: data.categoryIds.map((id) => ({ id })) };
+  }
+  if (data.tagNames !== undefined) {
+    const tagIds = await resolveTagIds(userId, data.tagNames);
+    patch.tags = { set: tagIds.map((id) => ({ id })) };
   }
 
   // Snapshot the newly-saved content as a version when it changed (DIG-20).

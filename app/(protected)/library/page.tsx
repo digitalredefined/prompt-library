@@ -1,7 +1,11 @@
 import Link from "next/link";
 
-import { CopyButton } from "@/components/copy-button";
-import { countPrompts, listPrompts } from "@/lib/prompts";
+import { LibraryFilters } from "@/components/library-filters";
+import { PromptList, type PromptCard } from "@/components/prompt-list";
+import { listCategories } from "@/lib/categories";
+import { listFolders } from "@/lib/folders";
+import { countPrompts, listPromptsWithLabels } from "@/lib/prompts";
+import { listTags } from "@/lib/tags";
 import { requireUser } from "@/lib/session";
 
 export const metadata = {
@@ -16,22 +20,89 @@ const dateFmt = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
+/** Normalize a repeatable search param to a string array. */
+function toArray(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 export default async function LibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    folderId?: string;
+    categoryId?: string | string[];
+    tag?: string | string[];
+  }>;
 }) {
   const user = await requireUser("/library");
-  const { page: pageParam } = await searchParams;
+  const {
+    page: pageParam,
+    folderId: folderParam,
+    categoryId: categoryParam,
+    tag: tagParam,
+  } = await searchParams;
 
-  const total = await countPrompts(user.id);
+  // `folderId` absent → all folders; "none" → the Unfiled (root) bucket; any
+  // other value → that folder. Category/tag filters are repeatable and combine
+  // with the folder (and each other) as AND — see `buildPromptWhere`/DIG-26.
+  const folderFilter =
+    folderParam === undefined
+      ? undefined
+      : folderParam === "none"
+        ? null
+        : folderParam;
+  const categoryIds = toArray(categoryParam);
+  const tagIds = toArray(tagParam);
+  const filter = { folderId: folderFilter, categoryIds, tagIds };
+  const filtersActive =
+    folderParam !== undefined || categoryIds.length > 0 || tagIds.length > 0;
+
+  const [folders, categories, tags] = await Promise.all([
+    listFolders(user.id),
+    listCategories(user.id),
+    listTags(user.id),
+  ]);
+
+  const total = await countPrompts(user.id, filter);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
 
-  const prompts = await listPrompts(user.id, {
+  const prompts = await listPromptsWithLabels(user.id, {
+    ...filter,
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
   });
+
+  const folderOptions = folders.map((f) => ({ id: f.id, name: f.name }));
+
+  // Serializable card shape for the client list (drag source + move menu).
+  const cards: PromptCard[] = prompts.map((p) => ({
+    id: p.id,
+    title: p.title,
+    body: p.body,
+    folderId: p.folderId,
+    shared: p.visibility === "UNLISTED",
+    updatedLabel: dateFmt.format(p.updatedAt),
+    categories: p.categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+    })),
+    tags: p.tags.map((t) => ({ id: t.id, name: t.name })),
+  }));
+
+  // Preserve every active filter across pagination links.
+  const hrefForPage = (p: number) => {
+    const params = new URLSearchParams();
+    if (folderParam) params.set("folderId", folderParam);
+    for (const id of categoryIds) params.append("categoryId", id);
+    for (const id of tagIds) params.append("tag", id);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return qs ? `/library?${qs}` : "/library";
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
@@ -40,6 +111,11 @@ export default async function LibraryPage({
           <h1 className="text-3xl font-bold tracking-tight">Your library</h1>
           <p className="text-foreground/60 text-sm">
             {total} {total === 1 ? "prompt" : "prompts"}
+            {filtersActive
+              ? total === 1
+                ? " matches your filters"
+                : " match your filters"
+              : ""}
           </p>
         </div>
         <Link
@@ -50,10 +126,22 @@ export default async function LibraryPage({
         </Link>
       </div>
 
+      <LibraryFilters
+        folders={folderOptions}
+        categories={categories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
+        tags={tags.map((t) => ({ id: t.id, name: t.name }))}
+      />
+
       {total === 0 ? (
         <div className="border-foreground/10 bg-foreground/[0.03] flex flex-col items-start gap-3 rounded-lg border p-6">
           <p className="text-foreground/70 text-sm">
-            No prompts yet. Create your first one to get started.
+            {filtersActive
+              ? "No prompts match these filters."
+              : "No prompts yet. Create your first one to get started."}
           </p>
           <Link
             href="/library/new"
@@ -63,59 +151,14 @@ export default async function LibraryPage({
           </Link>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {prompts.map((prompt) => (
-            <li
-              key={prompt.id}
-              className="border-foreground/10 hover:border-foreground/25 flex flex-col gap-2 rounded-lg border p-4 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <Link
-                  href={`/library/${prompt.id}`}
-                  className="font-medium hover:underline"
-                >
-                  {prompt.title}
-                </Link>
-                {prompt.visibility === "UNLISTED" ? (
-                  <span className="text-foreground/50 shrink-0 rounded-full border border-current px-2 py-0.5 text-[11px] font-medium">
-                    Shared
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-foreground/50 line-clamp-2 flex-1 text-sm">
-                {prompt.body}
-              </p>
-              <span className="text-foreground/40 text-xs">
-                Updated {dateFmt.format(prompt.updatedAt)}
-              </span>
-              <div className="flex items-center gap-2 pt-1">
-                <Link
-                  href={`/library/${prompt.id}`}
-                  className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                >
-                  Open
-                </Link>
-                <CopyButton
-                  text={prompt.body}
-                  className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                />
-                <Link
-                  href={`/library/${prompt.id}/edit`}
-                  className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                >
-                  Edit
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <PromptList prompts={cards} folders={folderOptions} />
       )}
 
       {pageCount > 1 ? (
         <nav className="flex items-center justify-between pt-2 text-sm">
           {page > 1 ? (
             <Link
-              href={`/library?page=${page - 1}`}
+              href={hrefForPage(page - 1)}
               className="text-foreground/70 hover:text-foreground transition-colors"
             >
               ← Previous
@@ -128,7 +171,7 @@ export default async function LibraryPage({
           </span>
           {page < pageCount ? (
             <Link
-              href={`/library?page=${page + 1}`}
+              href={hrefForPage(page + 1)}
               className="text-foreground/70 hover:text-foreground transition-colors"
             >
               Next →

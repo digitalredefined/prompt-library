@@ -36,6 +36,17 @@ function readPromptForm(formData: FormData) {
     notes: notes ? notes : null,
     // Empty string from the "No folder" option means the library root.
     folderId: folderId ? folderId : null,
+    // Classification (DIG-25). Checkboxes post multiple `categoryIds`; the tag
+    // input posts one `tagNames` per chip. Always send arrays (even empty) so an
+    // edit that clears all categories/tags is applied.
+    categoryIds: formData
+      .getAll("categoryIds")
+      .map((v) => String(v).trim())
+      .filter(Boolean),
+    tagNames: formData
+      .getAll("tagNames")
+      .map((v) => String(v).trim())
+      .filter(Boolean),
   };
 }
 
@@ -94,6 +105,26 @@ export async function deletePromptAction(id: string): Promise<void> {
   await deletePrompt(user.id, id);
   revalidatePath("/library");
   redirect("/library");
+}
+
+/**
+ * Move a prompt into a folder (or to the library root when `folderId` is null).
+ * Used by the drag-and-drop and "Move to…" flows (DIG-23). `updatePrompt`
+ * enforces ownership of both the prompt and the target folder; an unowned target
+ * throws `OwnershipError`, which we swallow so a stale drop target is a no-op
+ * rather than a crash. Does not create a version snapshot (body is unchanged).
+ */
+export async function movePromptAction(
+  promptId: string,
+  folderId: string | null,
+): Promise<void> {
+  const user = await requireUser();
+  try {
+    await updatePrompt(user.id, promptId, { folderId });
+  } catch (error) {
+    if (!(error instanceof OwnershipError)) throw error;
+  }
+  revalidatePath("/library");
 }
 
 export async function setSharingAction(
