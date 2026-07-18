@@ -53,6 +53,8 @@ export function PromptForm({
           name="title"
           defaultValue={initial?.title}
           autoFocus
+          required
+          maxLength={200}
           className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none"
           placeholder="e.g. Cold outreach email"
         />
@@ -85,6 +87,7 @@ export function PromptForm({
           name="body"
           defaultValue={initial?.body}
           rows={8}
+          required
           className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 font-mono text-sm outline-none"
           placeholder="Write the prompt text…"
         />
@@ -103,6 +106,7 @@ export function PromptForm({
           name="notes"
           defaultValue={initial?.notes ?? ""}
           rows={2}
+          maxLength={2000}
           className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none"
           placeholder="Context, constraints, reminders…"
         />
