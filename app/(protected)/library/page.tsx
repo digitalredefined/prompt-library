@@ -5,6 +5,7 @@ import { LibraryFilters } from "@/components/library-filters";
 import { LibrarySearch } from "@/components/library-search";
 import { LibrarySort } from "@/components/library-sort";
 import { PromptList, type PromptCard } from "@/components/prompt-list";
+import { Button } from "@/components/ui/button";
 import { listCategories } from "@/lib/categories";
 import { listFolders } from "@/lib/folders";
 import {
@@ -143,7 +144,7 @@ export default async function LibraryPage({
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold tracking-tight">Your library</h1>
@@ -156,12 +157,9 @@ export default async function LibraryPage({
               : ""}
           </p>
         </div>
-        <Link
-          href="/library/new"
-          className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
-        >
-          New prompt
-        </Link>
+        <Button asChild className="shrink-0">
+          <Link href="/library/new">New prompt</Link>
+        </Button>
       </div>
 
       <div className="flex items-center gap-3">

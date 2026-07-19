@@ -10,7 +10,7 @@ export default async function AccountPage() {
   const user = await requireUser("/account");
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-8 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Account</h1>
         <p className="text-foreground/60 text-sm">
