@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { signOut } from "@/auth";
+import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/session";
 
 export const metadata = {
@@ -29,7 +30,7 @@ export default async function AccountPage() {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="bg-foreground/10 text-foreground/60 flex size-14 items-center justify-center rounded-full text-lg font-semibold">
+          <div className="bg-muted text-muted-foreground flex size-14 items-center justify-center rounded-full text-lg font-semibold">
             {(user.name ?? user.email ?? "?").charAt(0).toUpperCase()}
           </div>
         )}
@@ -56,12 +57,9 @@ export default async function AccountPage() {
           await signOut({ redirectTo: "/" });
         }}
       >
-        <button
-          type="submit"
-          className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-        >
+        <Button type="submit" variant="outline">
           Sign out
-        </button>
+        </Button>
       </form>
     </main>
   );

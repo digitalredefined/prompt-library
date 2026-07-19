@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { signOut } from "@/auth";
+import { CommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/session";
@@ -22,6 +23,7 @@ export async function SiteHeader() {
       <div className="flex items-center gap-1 text-sm sm:gap-2">
         {user ? (
           <>
+            <CommandMenu />
             <Button variant="ghost" size="sm" asChild>
               <Link href="/library">Library</Link>
             </Button>

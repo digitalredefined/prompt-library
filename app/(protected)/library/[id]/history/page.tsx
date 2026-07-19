@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getPrompt, listPromptVersions } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
 
@@ -51,17 +53,13 @@ export default async function PromptHistoryPage({
                 <span className="text-sm font-medium">
                   {dateFmt.format(version.createdAt)}
                 </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    version.source === "AI"
-                      ? "bg-foreground/10 text-foreground/70"
-                      : "border-foreground/20 text-foreground/50 border"
-                  }`}
+                <Badge
+                  variant={version.source === "AI" ? "secondary" : "outline"}
                 >
                   {version.source === "AI" ? "AI" : "Manual"}
-                </span>
+                </Badge>
                 {index === 0 ? (
-                  <span className="text-foreground/40 text-[11px]">
+                  <span className="text-muted-foreground text-[11px]">
                     (current)
                   </span>
                 ) : null}
@@ -70,12 +68,11 @@ export default async function PromptHistoryPage({
                 {version.body}
               </span>
             </div>
-            <Link
-              href={`/library/${prompt.id}/history/${version.id}`}
-              className="border-foreground/15 hover:bg-foreground/5 shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              View
-            </Link>
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href={`/library/${prompt.id}/history/${version.id}`}>
+                View
+              </Link>
+            </Button>
           </li>
         ))}
       </ol>

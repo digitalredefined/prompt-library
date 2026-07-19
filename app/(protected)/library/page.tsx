@@ -4,6 +4,9 @@ import Link from "next/link";
 import { LibraryFilters } from "@/components/library-filters";
 import { LibrarySearch } from "@/components/library-search";
 import { LibrarySort } from "@/components/library-sort";
+import { FileTextIcon, FilterXIcon, SearchXIcon } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
 import { PromptList, type PromptCard } from "@/components/prompt-list";
 import { Button } from "@/components/ui/button";
 import { listCategories } from "@/lib/categories";
@@ -180,19 +183,40 @@ export default async function LibraryPage({
       />
 
       {total === 0 ? (
-        <div className="border-foreground/10 bg-foreground/[0.03] flex flex-col items-start gap-3 rounded-lg border p-6">
-          <p className="text-foreground/70 text-sm">
-            {filtersActive
-              ? "No prompts match these filters."
-              : "No prompts yet. Create your first one to get started."}
-          </p>
-          <Link
-            href="/library/new"
-            className="text-sm font-medium underline underline-offset-4"
-          >
-            New prompt →
-          </Link>
-        </div>
+        query ? (
+          <EmptyState
+            icon={SearchXIcon}
+            title={`No prompts match “${query}”`}
+            description="Try a different search term, or clear your filters to see everything."
+            action={
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/library">Clear search</Link>
+              </Button>
+            }
+          />
+        ) : filtersActive ? (
+          <EmptyState
+            icon={FilterXIcon}
+            title="No prompts match these filters"
+            description="No prompts fall under the current folder, category, or tag selection."
+            action={
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/library">Clear filters</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={FileTextIcon}
+            title="Your library is empty"
+            description="Save your first prompt to start building your library. You can organize it into folders and tags later."
+            action={
+              <Button asChild>
+                <Link href="/library/new">New prompt</Link>
+              </Button>
+            }
+          />
+        )
       ) : (
         <PromptList prompts={cards} folders={folderOptions} query={query} />
       )}
