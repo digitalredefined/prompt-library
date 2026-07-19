@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
 import { diffLines } from "@/lib/diff";
 import { getPrompt, getPromptVersion } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
@@ -74,10 +75,10 @@ export default async function VersionDiffPage({
                 key={i}
                 className={
                   line.type === "add"
-                    ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                    ? "bg-success/10 text-success"
                     : line.type === "del"
-                      ? "bg-red-500/10 text-red-700 dark:text-red-400"
-                      : "text-foreground/60"
+                      ? "bg-destructive/10 text-destructive"
+                      : "text-muted-foreground"
                 }
               >
                 <span className="opacity-60 select-none">
@@ -96,12 +97,7 @@ export default async function VersionDiffPage({
 
       {!isCurrent ? (
         <form action={restore} className="border-foreground/10 border-t pt-5">
-          <button
-            type="submit"
-            className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
-          >
-            Restore this version
-          </button>
+          <Button type="submit">Restore this version</Button>
           <p className="text-foreground/40 mt-2 text-xs">
             Restoring applies this version&rsquo;s content and adds a new entry
             to the history.
