@@ -1,13 +1,27 @@
 "use client";
 
+import { CheckIcon, PlusIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { createCategoryAction } from "@/app/(protected)/library/category-actions";
 import {
   INITIAL_FORM_STATE,
   type FormState,
 } from "@/app/(protected)/library/form-state";
+
+/** Sentinel for the "no folder" option — Radix Select disallows empty values. */
+const ROOT_FOLDER = "__root";
 
 export type CategoryOption = { id: string; name: string; color: string | null };
 
@@ -58,49 +72,59 @@ export function PromptForm({
     action,
     INITIAL_FORM_STATE,
   );
+  const [folderId, setFolderId] = useState(initial?.folderId ?? "");
   const fieldError = (name: string) => state.fieldErrors?.[name]?.[0];
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
       {state.error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">
           {state.error}
         </p>
       ) : null}
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Title</span>
-        <input
+        <Input
           name="title"
           defaultValue={initial?.title}
           autoFocus
           required
           maxLength={200}
-          className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none"
+          aria-invalid={fieldError("title") ? true : undefined}
           placeholder="e.g. Cold outreach email"
         />
         {fieldError("title") ? (
-          <span className="text-xs text-red-600 dark:text-red-400">
+          <span className="text-destructive text-xs">
             {fieldError("title")}
           </span>
         ) : null}
       </label>
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Folder</span>
-        <select
-          name="folderId"
-          defaultValue={initial?.folderId ?? ""}
-          className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none"
+        {/* Hidden input carries the real value ("" = library root) so the server
+            action keeps its native form semantics. */}
+        <input type="hidden" name="folderId" value={folderId} />
+        <Select
+          value={folderId || ROOT_FOLDER}
+          onValueChange={(v) => setFolderId(v === ROOT_FOLDER ? "" : v)}
         >
-          <option value="">No folder (library root)</option>
-          {folders.map((folder) => (
-            <option key={folder.id} value={folder.id}>
-              {folder.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ROOT_FOLDER}>
+              No folder (library root)
+            </SelectItem>
+            {folders.map((folder) => (
+              <SelectItem key={folder.id} value={folder.id}>
+                {folder.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <CategoryPicker
         categories={categories}
@@ -114,54 +138,46 @@ export function PromptForm({
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Prompt</span>
-        <textarea
+        <Textarea
           name="body"
           defaultValue={initial?.body}
           rows={8}
           required
-          className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 font-mono text-sm outline-none"
+          aria-invalid={fieldError("body") ? true : undefined}
+          className="font-mono"
           placeholder="Write the prompt text…"
         />
         {fieldError("body") ? (
-          <span className="text-xs text-red-600 dark:text-red-400">
-            {fieldError("body")}
-          </span>
+          <span className="text-destructive text-xs">{fieldError("body")}</span>
         ) : null}
       </label>
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">
-          Notes <span className="text-foreground/40">(optional)</span>
+          Notes <span className="text-muted-foreground">(optional)</span>
         </span>
-        <textarea
+        <Textarea
           name="notes"
           defaultValue={initial?.notes ?? ""}
           rows={2}
           maxLength={2000}
-          className="border-foreground/15 focus:border-foreground/40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none"
+          aria-invalid={fieldError("notes") ? true : undefined}
           placeholder="Context, constraints, reminders…"
         />
         {fieldError("notes") ? (
-          <span className="text-xs text-red-600 dark:text-red-400">
+          <span className="text-destructive text-xs">
             {fieldError("notes")}
           </span>
         ) : null}
       </label>
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
-        </button>
-        <Link
-          href={cancelHref}
-          className="text-foreground/60 hover:text-foreground text-sm transition-colors"
-        >
-          Cancel
-        </Link>
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href={cancelHref}>Cancel</Link>
+        </Button>
       </div>
     </form>
   );
@@ -224,8 +240,8 @@ function CategoryPicker({
               key={c.id}
               className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
                 isOn
-                  ? "border-foreground/40 bg-foreground/10 font-medium"
-                  : "border-foreground/15 hover:bg-foreground/5"
+                  ? "border-primary bg-accent font-medium"
+                  : "border-input hover:bg-accent"
               }`}
             >
               <input
@@ -249,7 +265,7 @@ function CategoryPicker({
         })}
 
         {adding ? (
-          <span className="border-foreground/15 flex items-center gap-1.5 rounded-full border py-1 pr-1 pl-2">
+          <span className="border-input flex items-center gap-1.5 rounded-full border py-1 pr-1 pl-2">
             <span className="flex items-center gap-1">
               {CATEGORY_COLORS.map((c) => (
                 <button
@@ -257,7 +273,7 @@ function CategoryPicker({
                   type="button"
                   onClick={() => setColor(c)}
                   aria-label={`Color ${c}`}
-                  className={`h-4 w-4 rounded-full ${color === c ? "ring-foreground/50 ring-2 ring-offset-1" : ""}`}
+                  className={`h-4 w-4 rounded-full ${color === c ? "ring-ring ring-2 ring-offset-1" : ""}`}
                   style={{ backgroundColor: c }}
                 />
               ))}
@@ -276,16 +292,16 @@ function CategoryPicker({
               maxLength={60}
               placeholder="New category"
               aria-label="New category name"
-              className="w-28 min-w-0 bg-transparent text-sm outline-none"
+              className="placeholder:text-muted-foreground w-28 min-w-0 bg-transparent text-sm outline-none"
             />
             <button
               type="button"
               onClick={() => void createCategory()}
               disabled={creating}
-              className="text-foreground/60 hover:text-foreground px-1 text-sm disabled:opacity-40"
+              className="text-muted-foreground hover:text-foreground px-1 disabled:opacity-40"
               aria-label="Add category"
             >
-              ✓
+              <CheckIcon className="size-4" />
             </button>
             <button
               type="button"
@@ -293,25 +309,26 @@ function CategoryPicker({
                 setAdding(false);
                 setError(null);
               }}
-              className="text-foreground/50 hover:text-foreground px-0.5 text-sm"
+              className="text-muted-foreground hover:text-foreground px-0.5"
               aria-label="Cancel"
             >
-              ✕
+              <XIcon className="size-4" />
             </button>
           </span>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setAdding(true)}
-            className="border-foreground/15 text-foreground/60 hover:bg-foreground/5 rounded-full border border-dashed px-3 py-1 text-sm transition-colors"
+            className="text-muted-foreground rounded-full border-dashed"
           >
-            + New category
-          </button>
+            <PlusIcon />
+            New category
+          </Button>
         )}
       </div>
-      {error ? (
-        <span className="text-xs text-red-600 dark:text-red-400">{error}</span>
-      ) : null}
+      {error ? <span className="text-destructive text-xs">{error}</span> : null}
     </fieldset>
   );
 }
@@ -350,13 +367,13 @@ function TagEditor({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium">
-        Tags <span className="text-foreground/40">(optional)</span>
+        Tags <span className="text-muted-foreground">(optional)</span>
       </span>
-      <div className="border-foreground/15 focus-within:border-foreground/40 flex flex-wrap items-center gap-1.5 rounded-md border px-2 py-1.5">
+      <div className="border-input focus-within:border-ring focus-within:ring-ring/50 flex flex-wrap items-center gap-1.5 rounded-md border px-2 py-1.5 transition-[color,box-shadow] focus-within:ring-[3px]">
         {tags.map((t) => (
           <span
             key={t}
-            className="bg-foreground/10 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+            className="bg-muted flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
           >
             <input type="hidden" name="tagNames" value={t} />
             {t}
@@ -364,9 +381,9 @@ function TagEditor({
               type="button"
               onClick={() => removeTag(t)}
               aria-label={`Remove tag ${t}`}
-              className="text-foreground/50 hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
             >
-              ✕
+              <XIcon className="size-3" />
             </button>
           </span>
         ))}
@@ -386,7 +403,7 @@ function TagEditor({
           maxLength={50}
           placeholder={tags.length ? "" : "Add tags…"}
           aria-label="Add a tag"
-          className="min-w-24 flex-1 bg-transparent text-sm outline-none"
+          className="placeholder:text-muted-foreground min-w-24 flex-1 bg-transparent text-sm outline-none"
         />
         <datalist id="tag-suggestions">
           {available.map((s) => (
@@ -394,7 +411,7 @@ function TagEditor({
           ))}
         </datalist>
       </div>
-      <span className="text-foreground/40 text-xs">
+      <span className="text-muted-foreground text-xs">
         Press Enter or comma to add. New tags are created automatically.
       </span>
     </div>

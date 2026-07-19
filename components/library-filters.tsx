@@ -1,7 +1,17 @@
 "use client";
 
+import { PlusIcon, XIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type CategoryOption = { id: string; name: string; color: string | null };
 export type NamedOption = { id: string; name: string };
@@ -84,7 +94,7 @@ export function LibraryFilters({
     <div className="flex flex-wrap items-center gap-2">
       {folderLabel !== null ? (
         <FilterChip onRemove={() => pushWith((p) => p.delete("folderId"))}>
-          <span className="text-foreground/50">Folder:</span> {folderLabel}
+          <span className="text-muted-foreground">Folder:</span> {folderLabel}
         </FilterChip>
       ) : null}
 
@@ -93,7 +103,7 @@ export function LibraryFilters({
           {c.color ? (
             <span
               aria-hidden
-              className="h-2 w-2 rounded-full"
+              className="size-2 rounded-full"
               style={{ backgroundColor: c.color }}
             />
           ) : null}
@@ -108,56 +118,44 @@ export function LibraryFilters({
       ))}
 
       {availableCategories.length > 0 ? (
-        <AddMenu label="＋ Category">
-          {(close) =>
-            availableCategories.map((c) => (
-              <MenuItem
-                key={c.id}
-                onSelect={() => {
-                  addValue("categoryId", c.id);
-                  close();
-                }}
-              >
-                {c.color ? (
-                  <span
-                    aria-hidden
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: c.color }}
-                  />
-                ) : null}
-                {c.name}
-              </MenuItem>
-            ))
-          }
+        <AddMenu label="Category">
+          {availableCategories.map((c) => (
+            <DropdownMenuItem
+              key={c.id}
+              onSelect={() => addValue("categoryId", c.id)}
+            >
+              {c.color ? (
+                <span
+                  aria-hidden
+                  className="size-2 rounded-full"
+                  style={{ backgroundColor: c.color }}
+                />
+              ) : null}
+              {c.name}
+            </DropdownMenuItem>
+          ))}
         </AddMenu>
       ) : null}
 
       {availableTags.length > 0 ? (
-        <AddMenu label="＋ Tag">
-          {(close) =>
-            availableTags.map((t) => (
-              <MenuItem
-                key={t.id}
-                onSelect={() => {
-                  addValue("tag", t.id);
-                  close();
-                }}
-              >
-                #{t.name}
-              </MenuItem>
-            ))
-          }
+        <AddMenu label="Tag">
+          {availableTags.map((t) => (
+            <DropdownMenuItem key={t.id} onSelect={() => addValue("tag", t.id)}>
+              #{t.name}
+            </DropdownMenuItem>
+          ))}
         </AddMenu>
       ) : null}
 
       {hasActive ? (
-        <button
-          type="button"
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => router.push(pathname)}
-          className="text-foreground/50 hover:text-foreground ml-1 text-xs underline underline-offset-4"
+          className="text-muted-foreground hover:text-foreground h-auto px-1"
         >
           Clear all
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -171,86 +169,40 @@ function FilterChip({
   onRemove: () => void;
 }) {
   return (
-    <span className="border-foreground/15 bg-foreground/[0.04] flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium">
+    <Badge variant="secondary" className="gap-1.5 py-1 pr-1 pl-2.5">
       {children}
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove filter"
-        className="text-foreground/40 hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 rounded-sm p-0.5"
       >
-        ✕
+        <XIcon className="size-3" />
       </button>
-    </span>
+    </Badge>
   );
 }
 
-/** Small dropdown for adding a category/tag filter; closes on outside click/Escape. */
-function AddMenu({
-  label,
-  children,
-}: {
-  label: string;
-  children: (close: () => void) => ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
+/** Dropdown for adding a category/tag filter, built on the shared DropdownMenu. */
+function AddMenu({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="border-foreground/15 text-foreground/60 hover:bg-foreground/5 rounded-full border border-dashed px-2.5 py-1 text-xs transition-colors"
-      >
-        {label}
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          className="border-foreground/15 bg-background absolute left-0 z-10 mt-1 max-h-64 w-48 overflow-auto rounded-md border py-1 shadow-lg"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-muted-foreground rounded-full border-dashed"
         >
-          {children(() => setOpen(false))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MenuItem({
-  children,
-  onSelect,
-}: {
-  children: ReactNode;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onSelect}
-      className="hover:bg-foreground/5 flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors"
-    >
-      {children}
-    </button>
+          <PlusIcon />
+          {label}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-64 w-48 overflow-auto"
+      >
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

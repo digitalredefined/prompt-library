@@ -14,6 +14,7 @@ import {
 import { useFormStatus } from "react-dom";
 
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { FolderWithCount } from "@/lib/folders";
 import {
@@ -440,13 +441,13 @@ function CreateFolderForm({
         <input type="hidden" name="parentId" value={parentId} />
       ) : null}
       <div className="flex items-center gap-1">
-        <input
+        <Input
           name="name"
           autoFocus={autoFocus}
           placeholder="Folder name"
           aria-label="New folder name"
           maxLength={120}
-          className="border-foreground/15 focus:border-foreground/40 min-w-0 flex-1 rounded border bg-transparent px-1.5 py-1 text-sm outline-none"
+          className="h-8 min-w-0 flex-1"
         />
         <SubmitIcon label="Create folder">✓</SubmitIcon>
         <button
@@ -480,13 +481,13 @@ function RenameFolderForm({
   return (
     <form action={formAction} className="flex flex-col gap-1 px-2 py-1">
       <div className="flex items-center gap-1">
-        <input
+        <Input
           name="name"
           autoFocus
           defaultValue={folder.name}
           aria-label="Folder name"
           maxLength={120}
-          className="border-foreground/15 focus:border-foreground/40 min-w-0 flex-1 rounded border bg-transparent px-1.5 py-1 text-sm outline-none"
+          className="h-8 min-w-0 flex-1"
         />
         <SubmitIcon label="Save name">✓</SubmitIcon>
         <button
@@ -518,7 +519,7 @@ function DeleteFolderControl({
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className={`${iconBtn} hover:text-red-600 dark:hover:text-red-400`}
+        className={`${iconBtn} hover:text-destructive`}
         aria-label={`Delete ${folder.name}`}
         title="Delete"
       >
@@ -534,7 +535,7 @@ function DeleteFolderControl({
     >
       <SubmitIcon
         label={`Confirm delete ${folder.name}`}
-        className="text-red-600 dark:text-red-400"
+        className="text-destructive"
       >
         ✓
       </SubmitIcon>
@@ -576,9 +577,7 @@ function SubmitIcon({
 function FieldError({ state }: { state: FormState }) {
   const message = state.error ?? state.fieldErrors?.name?.[0];
   if (!message) return null;
-  return (
-    <p className="px-1 text-xs text-red-600 dark:text-red-400">{message}</p>
-  );
+  return <p className="text-destructive px-1 text-xs">{message}</p>;
 }
 
 /**
