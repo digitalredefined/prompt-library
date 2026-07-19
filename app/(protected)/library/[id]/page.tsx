@@ -83,12 +83,12 @@ export default async function PromptDetailPage({
           >
             Edit
           </Link>
-          <span
-            title="AI optimization arrives in M6 (DIG-31)"
-            className="border-foreground/10 text-foreground/40 cursor-not-allowed rounded-md border px-3 py-1.5 text-sm font-medium"
+          <Link
+            href={`/library/${prompt.id}/optimize`}
+            className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
           >
             Optimize
-          </span>
+          </Link>
         </div>
       </div>
 
