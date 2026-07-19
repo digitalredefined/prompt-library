@@ -230,7 +230,7 @@ function CategoryPicker({
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="text-sm font-medium">
-        Categories <span className="text-foreground/40">(optional)</span>
+        Categories <span className="text-muted-foreground">(optional)</span>
       </legend>
       <div className="flex flex-wrap items-center gap-2">
         {options.map((c) => {
