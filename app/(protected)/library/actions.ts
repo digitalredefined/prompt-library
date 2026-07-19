@@ -11,7 +11,9 @@ import {
   deletePrompt,
   disableSharing,
   enableSharing,
+  incrementPromptUsage,
   restorePromptVersion,
+  setPromptFavorite,
   updatePrompt,
 } from "@/lib/prompts";
 import type { FormState } from "./form-state";
@@ -125,6 +127,33 @@ export async function movePromptAction(
     if (!(error instanceof OwnershipError)) throw error;
   }
   revalidatePath("/library");
+}
+
+/**
+ * Record a "use" of a prompt (fired when its body is copied, DIG-19/DIG-28).
+ * Owner-scoped and best-effort — it feeds the "most used" sort but is never on
+ * the critical path of a copy, so it intentionally does not revalidate: the
+ * updated count surfaces on the next load rather than reordering the list out
+ * from under the user mid-copy.
+ */
+export async function recordPromptUsageAction(promptId: string): Promise<void> {
+  const user = await requireUser();
+  await incrementPromptUsage(user.id, promptId);
+}
+
+/**
+ * Star/unstar a prompt (DIG-29). Owner-scoped via the data layer; revalidates
+ * the library and detail views so the Favorites filter, star state, and counts
+ * stay in sync.
+ */
+export async function setFavoriteAction(
+  promptId: string,
+  favorite: boolean,
+): Promise<void> {
+  const user = await requireUser();
+  await setPromptFavorite(user.id, promptId, favorite);
+  revalidatePath("/library");
+  revalidatePath(`/library/${promptId}`);
 }
 
 export async function setSharingAction(

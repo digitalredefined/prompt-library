@@ -156,6 +156,8 @@ export type PromptFilter = {
   tagIds?: string[];
   /** Free-text search across title, body, notes, and tag names (DIG-27). */
   query?: string;
+  /** When true, restrict the listing to starred prompts (DIG-29). */
+  favorite?: boolean;
 };
 
 /**
@@ -202,6 +204,8 @@ function buildPromptWhere(
     ownerId: userId,
     // `folderId: undefined` means "no filter"; `null` means the root level.
     ...(filter.folderId !== undefined ? { folderId: filter.folderId } : {}),
+    // Favorites filter (DIG-29): only restrict when explicitly enabled.
+    ...(filter.favorite ? { favorite: true } : {}),
     ...(and.length ? { AND: and } : {}),
   };
 }
@@ -236,6 +240,35 @@ export function getPrompt(userId: string, id: string): Promise<Prompt | null> {
   return prisma.prompt.findFirst({ where: { id, ownerId: userId } });
 }
 
+/** How a prompt listing is ordered (DIG-28). */
+export type PromptSort = "recent" | "title" | "used";
+
+export const DEFAULT_SORT: PromptSort = "recent";
+
+const SORT_VALUES: readonly PromptSort[] = ["recent", "title", "used"];
+
+/** Narrow an arbitrary string (URL param / cookie) to a valid sort, or null. */
+export function parseSort(value: string | undefined | null): PromptSort | null {
+  return SORT_VALUES.includes(value as PromptSort)
+    ? (value as PromptSort)
+    : null;
+}
+
+/** Map a sort choice to a Prisma `orderBy`. Ties fall back to most-recent. */
+function orderByForSort(
+  sort: PromptSort,
+): Prisma.PromptOrderByWithRelationInput[] {
+  switch (sort) {
+    case "title":
+      return [{ title: "asc" }, { updatedAt: "desc" }];
+    case "used":
+      return [{ usageCount: "desc" }, { updatedAt: "desc" }];
+    case "recent":
+    default:
+      return [{ updatedAt: "desc" }];
+  }
+}
+
 /** A prompt with its assigned categories and tags (DIG-25), each sorted by name. */
 export type PromptWithLabels = Prompt & {
   categories: Category[];
@@ -253,12 +286,16 @@ const labelInclude = {
  */
 export function listPromptsWithLabels(
   userId: string,
-  options: PromptFilter & { skip?: number; take?: number } = {},
+  options: PromptFilter & {
+    skip?: number;
+    take?: number;
+    sort?: PromptSort;
+  } = {},
 ): Promise<PromptWithLabels[]> {
-  const { skip, take, ...filter } = options;
+  const { skip, take, sort = DEFAULT_SORT, ...filter } = options;
   return prisma.prompt.findMany({
     where: buildPromptWhere(userId, filter),
-    orderBy: { updatedAt: "desc" },
+    orderBy: orderByForSort(sort),
     skip,
     take,
     include: labelInclude,
@@ -399,6 +436,41 @@ export async function deletePrompt(
     where: { id, ownerId: userId },
   });
   return count > 0;
+}
+
+/**
+ * Record that an owned prompt was used (copied), bumping its `usageCount` to
+ * power the "most used" sort (DIG-28). Deliberately a raw UPDATE so Prisma's
+ * `@updatedAt` isn't triggered — using a prompt shouldn't reorder it under the
+ * "recent" sort. Owner-scoped in the WHERE; a foreign id simply affects zero
+ * rows. Best-effort: callers fire-and-forget from the copy action.
+ */
+export async function incrementPromptUsage(
+  userId: string,
+  id: string,
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE "Prompt" SET "usageCount" = "usageCount" + 1
+    WHERE "id" = ${id} AND "ownerId" = ${userId}
+  `;
+}
+
+/**
+ * Star or unstar an owned prompt (DIG-29). Like `incrementPromptUsage`, this is
+ * a raw UPDATE so it doesn't trip Prisma's `@updatedAt` — favoriting isn't a
+ * content edit and shouldn't reorder the prompt under the "recent" sort. Owner-
+ * scoped in the WHERE; returns true when a row was actually changed.
+ */
+export async function setPromptFavorite(
+  userId: string,
+  id: string,
+  favorite: boolean,
+): Promise<boolean> {
+  const affected = await prisma.$executeRaw`
+    UPDATE "Prompt" SET "favorite" = ${favorite}
+    WHERE "id" = ${id} AND "ownerId" = ${userId}
+  `;
+  return affected > 0;
 }
 
 // --- Sharing (foundational read-only links) ---------------------------------

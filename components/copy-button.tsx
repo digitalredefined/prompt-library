@@ -2,17 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { recordPromptUsageAction } from "@/app/(protected)/library/actions";
+
 /**
  * One-click copy of arbitrary text with a transient toast confirmation (DIG-19).
  * Self-contained (no toast library — shadcn/ui arrives in M7): on success it
  * shows a fixed, aria-live toast that auto-dismisses.
+ *
+ * When a `promptId` is given, a successful copy also records a "use" of that
+ * prompt (DIG-28) to power the "most used" sort — fire-and-forget, so it never
+ * blocks or fails the copy.
  */
 export function CopyButton({
   text,
+  promptId,
   label = "Copy",
   className,
 }: {
   text: string;
+  promptId?: string;
   label?: string;
   className?: string;
 }) {
@@ -30,6 +38,8 @@ export function CopyButton({
     try {
       await navigator.clipboard.writeText(text);
       setToast("ok");
+      // Best-effort usage tracking; a failure here must never affect the copy.
+      if (promptId) void recordPromptUsageAction(promptId).catch(() => {});
     } catch {
       setToast("err");
     }
