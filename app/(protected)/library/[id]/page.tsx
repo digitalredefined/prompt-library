@@ -65,6 +65,7 @@ export default async function PromptDetailPage({
         <div className="flex shrink-0 items-center gap-2">
           <CopyButton
             text={prompt.body}
+            promptId={prompt.id}
             label="Copy prompt"
             className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
           />

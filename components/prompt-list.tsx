@@ -99,7 +99,11 @@ export function PromptList({
             >
               Open
             </Link>
-            <CopyButton text={prompt.body} className={actionBtn} />
+            <CopyButton
+              text={prompt.body}
+              promptId={prompt.id}
+              className={actionBtn}
+            />
             <Link
               href={`/library/${prompt.id}/edit`}
               draggable={false}

@@ -1,11 +1,18 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { LibraryFilters } from "@/components/library-filters";
 import { LibrarySearch } from "@/components/library-search";
+import { LibrarySort } from "@/components/library-sort";
 import { PromptList, type PromptCard } from "@/components/prompt-list";
 import { listCategories } from "@/lib/categories";
 import { listFolders } from "@/lib/folders";
-import { countPrompts, listPromptsWithLabels } from "@/lib/prompts";
+import {
+  countPrompts,
+  DEFAULT_SORT,
+  listPromptsWithLabels,
+  parseSort,
+} from "@/lib/prompts";
 import { listTags } from "@/lib/tags";
 import { requireUser } from "@/lib/session";
 
@@ -36,6 +43,7 @@ export default async function LibraryPage({
     categoryId?: string | string[];
     tag?: string | string[];
     q?: string;
+    sort?: string;
   }>;
 }) {
   const user = await requireUser("/library");
@@ -45,6 +53,7 @@ export default async function LibraryPage({
     categoryId: categoryParam,
     tag: tagParam,
     q: queryParam,
+    sort: sortParam,
   } = await searchParams;
 
   // `folderId` absent → all folders; "none" → the Unfiled (root) bucket; any
@@ -60,6 +69,13 @@ export default async function LibraryPage({
   const tagIds = toArray(tagParam);
   const query = queryParam?.trim() || undefined;
   const filter = { folderId: folderFilter, categoryIds, tagIds, query };
+
+  // Sort resolution (DIG-28): explicit `sort` param wins; otherwise fall back to
+  // the last-used sort remembered in the `library_sort` cookie; else the default.
+  const sort =
+    parseSort(sortParam) ??
+    parseSort((await cookies()).get("library_sort")?.value) ??
+    DEFAULT_SORT;
   const filtersActive =
     folderParam !== undefined ||
     categoryIds.length > 0 ||
@@ -78,6 +94,7 @@ export default async function LibraryPage({
 
   const prompts = await listPromptsWithLabels(user.id, {
     ...filter,
+    sort,
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
   });
@@ -107,6 +124,7 @@ export default async function LibraryPage({
     for (const id of categoryIds) params.append("categoryId", id);
     for (const id of tagIds) params.append("tag", id);
     if (query) params.set("q", query);
+    if (sort !== DEFAULT_SORT) params.set("sort", sort);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `/library?${qs}` : "/library";
@@ -134,7 +152,12 @@ export default async function LibraryPage({
         </Link>
       </div>
 
-      <LibrarySearch />
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <LibrarySearch />
+        </div>
+        <LibrarySort value={sort} />
+      </div>
 
       <LibraryFilters
         folders={folderOptions}
