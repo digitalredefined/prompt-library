@@ -3,9 +3,11 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { CopyButton } from "@/components/copy-button";
+import { CopyHotkey } from "@/components/copy-hotkey";
 import { DeletePromptButton } from "@/components/delete-prompt-button";
 import { FavoriteButton } from "@/components/favorite-button";
 import { CategoryChip, TagChip } from "@/components/labels";
+import { Button } from "@/components/ui/button";
 import { listFolders } from "@/lib/folders";
 import { getPromptWithLabels } from "@/lib/prompts";
 import { requireUser } from "@/lib/session";
@@ -53,7 +55,8 @@ export default async function PromptDetailPage({
   const metadata = metadataEntries(prompt.metadata);
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+      <CopyHotkey text={prompt.body} />
       <Link
         href="/library"
         className="text-foreground/50 hover:text-foreground w-fit text-sm transition-colors"
@@ -70,25 +73,18 @@ export default async function PromptDetailPage({
           />
           <h1 className="text-2xl font-bold tracking-tight">{prompt.title}</h1>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <CopyButton
             text={prompt.body}
             promptId={prompt.id}
             label="Copy prompt"
-            className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
           />
-          <Link
-            href={`/library/${prompt.id}/edit`}
-            className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-          >
-            Edit
-          </Link>
-          <Link
-            href={`/library/${prompt.id}/optimize`}
-            className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-          >
-            Optimize
-          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/library/${prompt.id}/edit`}>Edit</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/library/${prompt.id}/optimize`}>Optimize</Link>
+          </Button>
         </div>
       </div>
 
@@ -164,12 +160,9 @@ export default async function PromptDetailPage({
             </span>
           </div>
           <form action={setSharingAction.bind(null, prompt.id, !isShared)}>
-            <button
-              type="submit"
-              className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            >
+            <Button type="submit" variant="outline" size="sm">
               {isShared ? "Stop sharing" : "Create link"}
-            </button>
+            </Button>
           </form>
         </div>
         {shareUrl ? (

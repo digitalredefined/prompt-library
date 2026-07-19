@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
 import { FavoriteButton } from "@/components/favorite-button";
 import { highlight } from "@/components/highlight";
 import { CategoryChip, TagChip } from "@/components/labels";
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /** Minimal, serializable prompt shape the list needs (built on the server). */
 export type PromptCard = {
@@ -23,9 +30,6 @@ export type PromptCard = {
 };
 
 export type FolderOption = { id: string; name: string };
-
-const actionBtn =
-  "border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors";
 
 /**
  * Library prompt grid with drag-and-drop + "Move to…" support (DIG-23).
@@ -100,26 +104,18 @@ export function PromptList({
           <span className="text-foreground/40 text-xs">
             Updated {prompt.updatedLabel}
           </span>
-          <div className="flex items-center gap-2 pt-1">
-            <Link
-              href={`/library/${prompt.id}`}
-              draggable={false}
-              className={actionBtn}
-            >
-              Open
-            </Link>
-            <CopyButton
-              text={prompt.body}
-              promptId={prompt.id}
-              className={actionBtn}
-            />
-            <Link
-              href={`/library/${prompt.id}/edit`}
-              draggable={false}
-              className={actionBtn}
-            >
-              Edit
-            </Link>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/library/${prompt.id}`} draggable={false}>
+                Open
+              </Link>
+            </Button>
+            <CopyButton text={prompt.body} promptId={prompt.id} />
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/library/${prompt.id}/edit`} draggable={false}>
+                Edit
+              </Link>
+            </Button>
             <MoveToMenu
               promptId={prompt.id}
               currentFolderId={prompt.folderId}
@@ -143,56 +139,29 @@ function MoveToMenu({
   folders: FolderOption[];
 }) {
   const { move } = useLibraryDnd();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click / Escape.
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   function choose(target: string | null) {
-    setOpen(false);
     if (target !== currentFolderId) move(promptId, target);
   }
 
   return (
-    <div ref={ref} className="relative ml-auto">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={actionBtn}
-      >
-        Move to…
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          className="border-foreground/15 bg-background absolute right-0 z-10 mt-1 max-h-64 w-48 overflow-auto rounded-md border py-1 shadow-lg"
+    <div className="ml-auto">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="outline" size="sm">
+            Move to…
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="max-h-64 w-48 overflow-auto"
         >
           <MoveOption
             label="Unfiled (root)"
             disabled={currentFolderId === null}
             onSelect={() => choose(null)}
           />
-          {folders.length > 0 ? (
-            <div className="border-foreground/10 my-1 border-t" />
-          ) : null}
+          {folders.length > 0 ? <DropdownMenuSeparator /> : null}
           {folders.map((f) => (
             <MoveOption
               key={f.id}
@@ -201,8 +170,8 @@ function MoveToMenu({
               onSelect={() => choose(f.id)}
             />
           ))}
-        </div>
-      ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -217,17 +186,15 @@ function MoveOption({
   onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="menuitem"
+    <DropdownMenuItem
       disabled={disabled}
-      onClick={onSelect}
-      className="hover:bg-foreground/5 flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm transition-colors disabled:opacity-40"
+      onSelect={onSelect}
+      className="justify-between gap-2"
     >
       <span className="truncate">{label}</span>
       {disabled ? (
-        <span className="text-foreground/40 text-xs">Current</span>
+        <span className="text-muted-foreground text-xs">Current</span>
       ) : null}
-    </button>
+    </DropdownMenuItem>
   );
 }

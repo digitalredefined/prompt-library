@@ -4,7 +4,11 @@ import Link from "next/link";
 import { LibraryFilters } from "@/components/library-filters";
 import { LibrarySearch } from "@/components/library-search";
 import { LibrarySort } from "@/components/library-sort";
+import { FileTextIcon, FilterXIcon, SearchXIcon } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
 import { PromptList, type PromptCard } from "@/components/prompt-list";
+import { Button } from "@/components/ui/button";
 import { listCategories } from "@/lib/categories";
 import { listFolders } from "@/lib/folders";
 import {
@@ -143,7 +147,7 @@ export default async function LibraryPage({
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold tracking-tight">Your library</h1>
@@ -156,12 +160,9 @@ export default async function LibraryPage({
               : ""}
           </p>
         </div>
-        <Link
-          href="/library/new"
-          className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
-        >
-          New prompt
-        </Link>
+        <Button asChild className="shrink-0">
+          <Link href="/library/new">New prompt</Link>
+        </Button>
       </div>
 
       <div className="flex items-center gap-3">
@@ -182,19 +183,40 @@ export default async function LibraryPage({
       />
 
       {total === 0 ? (
-        <div className="border-foreground/10 bg-foreground/[0.03] flex flex-col items-start gap-3 rounded-lg border p-6">
-          <p className="text-foreground/70 text-sm">
-            {filtersActive
-              ? "No prompts match these filters."
-              : "No prompts yet. Create your first one to get started."}
-          </p>
-          <Link
-            href="/library/new"
-            className="text-sm font-medium underline underline-offset-4"
-          >
-            New prompt →
-          </Link>
-        </div>
+        query ? (
+          <EmptyState
+            icon={SearchXIcon}
+            title={`No prompts match “${query}”`}
+            description="Try a different search term, or clear your filters to see everything."
+            action={
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/library">Clear search</Link>
+              </Button>
+            }
+          />
+        ) : filtersActive ? (
+          <EmptyState
+            icon={FilterXIcon}
+            title="No prompts match these filters"
+            description="No prompts fall under the current folder, category, or tag selection."
+            action={
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/library">Clear filters</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={FileTextIcon}
+            title="Your library is empty"
+            description="Save your first prompt to start building your library. You can organize it into folders and tags later."
+            action={
+              <Button asChild>
+                <Link href="/library/new">New prompt</Link>
+              </Button>
+            }
+          />
+        )
       ) : (
         <PromptList prompts={cards} folders={folderOptions} query={query} />
       )}

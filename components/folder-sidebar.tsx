@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDownIcon, FolderIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -13,6 +14,8 @@ import {
 import { useFormStatus } from "react-dom";
 
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import type { FolderWithCount } from "@/lib/folders";
 import {
   createFolderAction,
@@ -152,81 +155,135 @@ export function FolderSidebar({
   const allActive = activeFolderId === null && !activeFav;
   const [addingRoot, setAddingRoot] = useState(false);
 
+  // On small screens the sidebar collapses behind a "Folders" toggle (DIG-35).
+  // Selecting a scope navigates (the URL query changes), so close the drawer
+  // whenever the active filter changes to reveal the results underneath. We
+  // reconcile during render (React's recommended pattern for deriving state
+  // from a changing prop) rather than in an effect.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const paramsKey = params.toString();
+  const [seenParamsKey, setSeenParamsKey] = useState(paramsKey);
+  if (seenParamsKey !== paramsKey) {
+    setSeenParamsKey(paramsKey);
+    setMobileOpen(false);
+  }
+
+  // A short label for the currently-active scope, shown on the collapsed bar.
+  const activeLabel = activeFav
+    ? "Favorites"
+    : activeFolderId === null
+      ? "All prompts"
+      : activeFolderId === "none"
+        ? "Unfiled"
+        : (folders.find((f) => f.id === activeFolderId)?.name ?? "Folders");
+
   return (
-    <nav
-      aria-label="Folders"
-      className="border-foreground/10 flex w-full flex-col gap-1 border-b p-4 md:w-64 md:shrink-0 md:border-r md:border-b-0"
-    >
-      {/* All prompts — clears the folder + favorites filters (keeps category/tag). */}
-      <Link
-        href={hrefForFolder(null)}
-        className={`${rowBase} ${
-          allActive ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
-        }`}
-        aria-current={allActive ? "page" : undefined}
+    <div className="border-foreground/10 w-full border-b md:w-64 md:shrink-0 md:border-r md:border-b-0">
+      <button
+        type="button"
+        onClick={() => setMobileOpen((v) => !v)}
+        aria-expanded={mobileOpen}
+        aria-controls="folder-nav"
+        className="hover:bg-foreground/5 flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition-colors md:hidden"
       >
-        <span className={linkBase}>All prompts</span>
-        <span className={countBase}>{totalCount}</span>
-      </Link>
-
-      {/* Favorites — cross-cutting scope for starred prompts (DIG-29). */}
-      <Link
-        href={hrefForFavorites()}
-        className={`${rowBase} ${
-          activeFav ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
-        }`}
-        aria-current={activeFav ? "page" : undefined}
-      >
-        <span className={`${linkBase} flex items-center gap-1.5`}>
-          <span aria-hidden className="text-amber-500">
-            ★
+        <span className="flex min-w-0 items-center gap-2">
+          <FolderIcon className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">Folders</span>
+          <span className="text-foreground/40 truncate font-normal">
+            · {activeLabel}
           </span>
-          Favorites
         </span>
-        <span className={countBase}>{favoritesCount}</span>
-      </Link>
-
-      <div className="text-foreground/40 flex items-center justify-between px-2 pt-3 pb-1 text-xs font-medium tracking-wide uppercase">
-        <span>Folders</span>
-        <button
-          type="button"
-          onClick={() => setAddingRoot((v) => !v)}
-          className="hover:text-foreground text-base leading-none transition-colors"
-          aria-label="New folder"
-          aria-expanded={addingRoot}
-        >
-          +
-        </button>
-      </div>
-
-      {addingRoot ? (
-        <CreateFolderForm
-          parentId={null}
-          onDone={() => setAddingRoot(false)}
-          autoFocus
+        <ChevronDownIcon
+          className={cn(
+            "size-4 shrink-0 transition-transform",
+            mobileOpen && "rotate-180",
+          )}
+          aria-hidden
         />
-      ) : null}
+      </button>
+      <nav
+        id="folder-nav"
+        aria-label="Folders"
+        className={cn(
+          "flex-col gap-1 p-4 md:flex",
+          mobileOpen ? "flex" : "hidden",
+        )}
+      >
+        {/* All prompts — clears the folder + favorites filters (keeps category/tag). */}
+        <Link
+          href={hrefForFolder(null)}
+          className={`${rowBase} ${
+            allActive ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
+          }`}
+          aria-current={allActive ? "page" : undefined}
+        >
+          <span className={linkBase}>All prompts</span>
+          <span className={countBase}>{totalCount}</span>
+        </Link>
 
-      {tree.length === 0 && !addingRoot ? (
-        <p className="text-foreground/40 px-2 py-1 text-xs">No folders yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-0.5">
-          {tree.map((node) => (
-            <FolderNode
-              key={node.id}
-              node={node}
-              depth={0}
-              activeFolderId={activeFolderId}
-            />
-          ))}
-        </ul>
-      )}
+        {/* Favorites — cross-cutting scope for starred prompts (DIG-29). */}
+        <Link
+          href={hrefForFavorites()}
+          className={`${rowBase} ${
+            activeFav ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
+          }`}
+          aria-current={activeFav ? "page" : undefined}
+        >
+          <span className={`${linkBase} flex items-center gap-1.5`}>
+            <span aria-hidden className="text-amber-500">
+              ★
+            </span>
+            Favorites
+          </span>
+          <span className={countBase}>{favoritesCount}</span>
+        </Link>
 
-      {/* Unfiled — prompts with no folder. Hidden when there are none. */}
-      {unfiledCount > 0 ? (
-        <UnfiledRow active={activeFolderId === "none"} count={unfiledCount} />
-      ) : null}
-    </nav>
+        <div className="text-foreground/40 flex items-center justify-between px-2 pt-3 pb-1 text-xs font-medium tracking-wide uppercase">
+          <span>Folders</span>
+          <button
+            type="button"
+            onClick={() => setAddingRoot((v) => !v)}
+            className="hover:text-foreground text-base leading-none transition-colors"
+            aria-label="New folder"
+            aria-expanded={addingRoot}
+          >
+            +
+          </button>
+        </div>
+
+        {addingRoot ? (
+          <CreateFolderForm
+            parentId={null}
+            onDone={() => setAddingRoot(false)}
+            autoFocus
+          />
+        ) : null}
+
+        {tree.length === 0 && !addingRoot ? (
+          <p className="text-foreground/40 px-2 py-1 text-xs">
+            No folders yet — use{" "}
+            <span className="text-foreground/60 font-medium">+</span> to create
+            one.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {tree.map((node) => (
+              <FolderNode
+                key={node.id}
+                node={node}
+                depth={0}
+                activeFolderId={activeFolderId}
+              />
+            ))}
+          </ul>
+        )}
+
+        {/* Unfiled — prompts with no folder. Hidden when there are none. */}
+        {unfiledCount > 0 ? (
+          <UnfiledRow active={activeFolderId === "none"} count={unfiledCount} />
+        ) : null}
+      </nav>
+    </div>
   );
 }
 
@@ -384,13 +441,13 @@ function CreateFolderForm({
         <input type="hidden" name="parentId" value={parentId} />
       ) : null}
       <div className="flex items-center gap-1">
-        <input
+        <Input
           name="name"
           autoFocus={autoFocus}
           placeholder="Folder name"
           aria-label="New folder name"
           maxLength={120}
-          className="border-foreground/15 focus:border-foreground/40 min-w-0 flex-1 rounded border bg-transparent px-1.5 py-1 text-sm outline-none"
+          className="h-8 min-w-0 flex-1"
         />
         <SubmitIcon label="Create folder">✓</SubmitIcon>
         <button
@@ -424,13 +481,13 @@ function RenameFolderForm({
   return (
     <form action={formAction} className="flex flex-col gap-1 px-2 py-1">
       <div className="flex items-center gap-1">
-        <input
+        <Input
           name="name"
           autoFocus
           defaultValue={folder.name}
           aria-label="Folder name"
           maxLength={120}
-          className="border-foreground/15 focus:border-foreground/40 min-w-0 flex-1 rounded border bg-transparent px-1.5 py-1 text-sm outline-none"
+          className="h-8 min-w-0 flex-1"
         />
         <SubmitIcon label="Save name">✓</SubmitIcon>
         <button
@@ -462,7 +519,7 @@ function DeleteFolderControl({
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className={`${iconBtn} hover:text-red-600 dark:hover:text-red-400`}
+        className={`${iconBtn} hover:text-destructive`}
         aria-label={`Delete ${folder.name}`}
         title="Delete"
       >
@@ -478,7 +535,7 @@ function DeleteFolderControl({
     >
       <SubmitIcon
         label={`Confirm delete ${folder.name}`}
-        className="text-red-600 dark:text-red-400"
+        className="text-destructive"
       >
         ✓
       </SubmitIcon>
@@ -520,9 +577,7 @@ function SubmitIcon({
 function FieldError({ state }: { state: FormState }) {
   const message = state.error ?? state.fieldErrors?.name?.[0];
   if (!message) return null;
-  return (
-    <p className="px-1 text-xs text-red-600 dark:text-red-400">{message}</p>
-  );
+  return <p className="text-destructive px-1 text-xs">{message}</p>;
 }
 
 /**

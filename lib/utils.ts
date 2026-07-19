@@ -1,11 +1,13 @@
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
 /**
- * Shared utilities. `cn` merges conditional class names.
+ * Merge conditional class names, resolving Tailwind conflicts.
  *
- * Currently dependency-free; will be swapped for the clsx + tailwind-merge
- * variant when shadcn/ui is introduced (DIG-34, M7).
+ * `clsx` handles conditional/array/object inputs; `tailwind-merge` ensures the
+ * last conflicting utility wins (e.g. `px-2 px-4` → `px-4`). This is the
+ * standard shadcn/ui `cn` helper (introduced in DIG-34, M7).
  */
-export function cn(
-  ...classes: Array<string | false | null | undefined>
-): string {
-  return classes.filter(Boolean).join(" ");
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
 }

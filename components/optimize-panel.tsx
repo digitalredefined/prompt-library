@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { saveOptimizedAction } from "@/app/(protected)/library/actions";
 import { diffLines } from "@/lib/diff";
 import {
@@ -115,47 +117,40 @@ export function OptimizePanel({
         </legend>
         <div className="flex flex-wrap gap-2">
           {OPTIMIZATION_GOALS.map((g) => (
-            <button
+            <Button
               key={g.id}
               type="button"
+              size="sm"
+              variant={goal === g.id ? "default" : "outline"}
               onClick={() => setGoal(g.id)}
               aria-pressed={goal === g.id}
               title={g.description}
-              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
-                goal === g.id
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/15 hover:bg-foreground/5"
-              }`}
             >
               {g.label}
-            </button>
+            </Button>
           ))}
         </div>
       </fieldset>
 
       <div className="flex items-center gap-3">
-        <button
+        <Button
           type="button"
           onClick={optimize}
           disabled={status === "streaming"}
-          className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {status === "streaming"
             ? "Optimizing…"
             : status === "idle"
               ? "Optimize"
               : "Regenerate"}
-        </button>
-        <Link
-          href={`/library/${promptId}`}
-          className="text-foreground/60 hover:text-foreground text-sm transition-colors"
-        >
-          Cancel
-        </Link>
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href={`/library/${promptId}`}>Cancel</Link>
+        </Button>
       </div>
 
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">
+        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">
           {error}
         </p>
       ) : null}
@@ -166,7 +161,7 @@ export function OptimizePanel({
           <h2 className="text-foreground/60 text-xs font-medium tracking-wide uppercase">
             Suggested rewrite
           </h2>
-          <pre className="border-foreground/10 bg-foreground/[0.03] min-h-24 overflow-x-auto rounded-lg border p-4 font-mono text-sm whitespace-pre-wrap">
+          <pre className="border-border bg-muted/40 min-h-24 overflow-x-auto rounded-lg border p-4 font-mono text-sm whitespace-pre-wrap">
             {streamed}
             <span className="animate-pulse">▍</span>
           </pre>
@@ -187,10 +182,10 @@ export function OptimizePanel({
                     key={i}
                     className={
                       line.type === "add"
-                        ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                        ? "bg-success/10 text-success"
                         : line.type === "del"
-                          ? "bg-red-500/10 text-red-700 dark:text-red-400"
-                          : "text-foreground/60"
+                          ? "bg-destructive/10 text-destructive"
+                          : "text-muted-foreground"
                     }
                   >
                     <span className="opacity-60 select-none">
@@ -229,12 +224,12 @@ export function OptimizePanel({
             >
               Suggested rewrite (editable)
             </label>
-            <textarea
+            <Textarea
               id="optimized-body"
               value={edited}
               onChange={(e) => setEdited(e.target.value)}
               rows={Math.min(24, Math.max(6, edited.split("\n").length + 1))}
-              className="border-foreground/15 focus:border-foreground/40 rounded-lg border bg-transparent p-4 font-mono text-sm outline-none"
+              className="rounded-lg p-4 font-mono"
             />
             <p className="text-foreground/40 text-xs">
               Edit the rewrite before saving if you want to tweak it.
@@ -242,20 +237,16 @@ export function OptimizePanel({
           </section>
 
           <div className="border-foreground/10 flex items-center gap-3 border-t pt-5">
-            <button
+            <Button
               type="button"
               onClick={accept}
               disabled={saving || !changed || edited.trim().length === 0}
-              className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Saving…" : "Accept & save"}
-            </button>
-            <Link
-              href={`/library/${promptId}`}
-              className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Reject
-            </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/library/${promptId}`}>Reject</Link>
+            </Button>
           </div>
           <p className="text-foreground/40 -mt-3 text-xs">
             Accepting saves this as a new AI version of{" "}

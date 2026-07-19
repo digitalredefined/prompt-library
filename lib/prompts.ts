@@ -227,6 +227,26 @@ export function listPrompts(
   });
 }
 
+/** A minimal prompt row for the command palette (DIG-37): enough to search and jump. */
+export type PromptIndexEntry = { id: string; title: string };
+
+/**
+ * List the user's prompts as lightweight `{ id, title }` rows, newest first, for
+ * the command palette's search-and-jump. Owner-scoped; capped so a huge library
+ * can't bloat the payload (the palette also has its own text filter).
+ */
+export function listPromptIndex(
+  userId: string,
+  take = 200,
+): Promise<PromptIndexEntry[]> {
+  return prisma.prompt.findMany({
+    where: { ownerId: userId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true },
+    take,
+  });
+}
+
 /** Count the user's prompts (for pagination), applying the given filters. */
 export function countPrompts(
   userId: string,

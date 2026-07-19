@@ -1,13 +1,16 @@
 "use client";
 
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { recordPromptUsageAction } from "@/app/(protected)/library/actions";
+import { Button } from "@/components/ui/button";
 
 /**
- * One-click copy of arbitrary text with a transient toast confirmation (DIG-19).
- * Self-contained (no toast library — shadcn/ui arrives in M7): on success it
- * shows a fixed, aria-live toast that auto-dismisses.
+ * One-click copy of arbitrary text with a toast confirmation (DIG-19).
+ * Uses the shared shadcn `Button` and the app's sonner toaster (DIG-34); shows
+ * a brief inline "Copied" affordance on the button itself for tactile feedback.
  *
  * When a `promptId` is given, a successful copy also records a "use" of that
  * prompt (DIG-28) to power the "most used" sort — fire-and-forget, so it never
@@ -18,13 +21,17 @@ export function CopyButton({
   promptId,
   label = "Copy",
   className,
+  variant = "outline",
+  size = "sm",
 }: {
   text: string;
   promptId?: string;
   label?: string;
   className?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: React.ComponentProps<typeof Button>["size"];
 }) {
-  const [toast, setToast] = useState<null | "ok" | "err">(null);
+  const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -37,46 +44,27 @@ export function CopyButton({
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
-      setToast("ok");
+      setCopied(true);
+      toast.success("Copied to clipboard");
       // Best-effort usage tracking; a failure here must never affect the copy.
       if (promptId) void recordPromptUsageAction(promptId).catch(() => {});
     } catch {
-      setToast("err");
+      toast.error("Couldn’t copy to clipboard");
     }
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setToast(null), 1800);
+    timer.current = setTimeout(() => setCopied(false), 1800);
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={copy}
-        className={
-          className ??
-          "border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-        }
-      >
-        {label}
-      </button>
-
-      {/* Fixed toast; polite live region so screen readers announce the result. */}
-      <div
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center"
-      >
-        {toast ? (
-          <span
-            className={`rounded-full px-4 py-2 text-sm font-medium shadow-lg ${
-              toast === "ok"
-                ? "bg-foreground text-background"
-                : "bg-red-600 text-white"
-            }`}
-          >
-            {toast === "ok" ? "Copied to clipboard" : "Couldn’t copy"}
-          </span>
-        ) : null}
-      </div>
-    </>
+    <Button
+      type="button"
+      onClick={copy}
+      variant={variant}
+      size={size}
+      className={className}
+    >
+      {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
+      {label}
+    </Button>
   );
 }

@@ -1,58 +1,56 @@
 import Link from "next/link";
 
 import { signOut } from "@/auth";
+import { CommandMenu } from "@/components/command-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/session";
 
 /**
  * App header. Server component: reads the session via the shared (request-cached)
  * `getCurrentUser` helper and renders sign-in / sign-out. Sign-out is a server
- * action.
+ * action. Uses shared shadcn primitives + a theme toggle (DIG-34/35).
  */
 export async function SiteHeader() {
   const user = await getCurrentUser();
 
   return (
-    <header className="border-foreground/10 flex items-center justify-between border-b px-6 py-3">
+    <header className="bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3 backdrop-blur sm:px-6">
       <Link href="/" className="font-semibold tracking-tight">
         Prompt Library
       </Link>
 
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-1 text-sm sm:gap-2">
         {user ? (
           <>
-            <Link
-              href="/library"
-              className="text-foreground/70 hover:text-foreground font-medium transition-colors"
-            >
-              Library
-            </Link>
-            <Link
-              href="/account"
-              className="text-foreground/70 hover:text-foreground font-medium transition-colors"
-            >
-              {user.name ?? user.email}
-            </Link>
+            <CommandMenu />
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/library">Library</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/account" className="max-w-[40vw] truncate">
+                {user.name ?? user.email}
+              </Link>
+            </Button>
+            <ThemeToggle />
             <form
               action={async () => {
                 "use server";
                 await signOut({ redirectTo: "/" });
               }}
             >
-              <button
-                type="submit"
-                className="border-foreground/15 hover:bg-foreground/5 rounded-md border px-3 py-1.5 font-medium transition-colors"
-              >
+              <Button type="submit" variant="outline" size="sm">
                 Sign out
-              </button>
+              </Button>
             </form>
           </>
         ) : (
-          <Link
-            href="/signin"
-            className="bg-foreground text-background rounded-md px-3 py-1.5 font-medium transition-opacity hover:opacity-90"
-          >
-            Sign in
-          </Link>
+          <>
+            <ThemeToggle />
+            <Button size="sm" asChild>
+              <Link href="/signin">Sign in</Link>
+            </Button>
+          </>
         )}
       </div>
     </header>
