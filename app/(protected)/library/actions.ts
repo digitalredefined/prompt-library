@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { PromptSource } from "@prisma/client";
+
 import { requireUser } from "@/lib/session";
 import {
   OwnershipError,
@@ -167,6 +169,36 @@ export async function setSharingAction(
     await disableSharing(user.id, id);
   }
   revalidatePath(`/library/${id}`);
+}
+
+/**
+ * Save an AI-optimized body back to a prompt (DIG-33). Delegates to
+ * `updatePrompt` with `source = AI`, which snapshots the new content as a
+ * `PromptVersion` (marked AI) only when it actually differs. The prior body
+ * stays in history as its own version, so the original remains restorable, and
+ * revalidation reflects the new body in both the library and detail views.
+ *
+ * Returns a typed `FormState` so the review UI can surface "not found" without a
+ * redirect; on success it redirects to the detail page.
+ */
+export async function saveOptimizedAction(
+  id: string,
+  body: string,
+): Promise<FormState> {
+  const user = await requireUser();
+
+  try {
+    const updated = await updatePrompt(user.id, id, { body }, PromptSource.AI);
+    if (!updated) {
+      return { ok: false, error: "Prompt not found." };
+    }
+  } catch (error) {
+    return toFormState(error);
+  }
+
+  revalidatePath("/library");
+  revalidatePath(`/library/${id}`);
+  redirect(`/library/${id}`);
 }
 
 export async function restoreVersionAction(
