@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { CopyButton } from "@/components/copy-button";
+import { CopyHotkey } from "@/components/copy-hotkey";
 import { DeletePromptButton } from "@/components/delete-prompt-button";
 import { FavoriteButton } from "@/components/favorite-button";
 import { CategoryChip, TagChip } from "@/components/labels";
@@ -54,7 +55,8 @@ export default async function PromptDetailPage({
   const metadata = metadataEntries(prompt.metadata);
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+      <CopyHotkey text={prompt.body} />
       <Link
         href="/library"
         className="text-foreground/50 hover:text-foreground w-fit text-sm transition-colors"

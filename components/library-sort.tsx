@@ -2,6 +2,13 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DEFAULT_SORT, type PromptSort } from "@/lib/prompts";
 
 const OPTIONS: { value: PromptSort; label: string }[] = [
@@ -40,20 +47,23 @@ export function LibrarySort({ value }: { value: PromptSort }) {
   }
 
   return (
-    <label className="text-foreground/60 flex items-center gap-2 text-sm">
+    <div className="text-muted-foreground flex items-center gap-2 text-sm">
       <span className="sr-only sm:not-sr-only">Sort</span>
-      <select
+      <Select
         value={value}
-        onChange={(e) => onChange(e.target.value as PromptSort)}
-        aria-label="Sort prompts"
-        className="border-foreground/15 focus:border-foreground/40 bg-background text-foreground rounded-md border px-2 py-1.5 text-sm transition-colors outline-none"
+        onValueChange={(next) => onChange(next as PromptSort)}
       >
-        {OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        <SelectTrigger size="sm" aria-label="Sort prompts" className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
