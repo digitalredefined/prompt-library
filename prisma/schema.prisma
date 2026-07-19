@@ -104,6 +104,9 @@ model Prompt {
   notes     String?
   /// Free-form metadata (e.g. model, variables). Shape refined as features land.
   metadata  Json?
+  /// How many times the prompt has been copied/used — powers the "most used"
+  /// sort (DIG-28). Bumped without touching `updatedAt` so usage isn't an edit.
+  usageCount Int     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -126,6 +129,8 @@ model Prompt {
 
   @@index([ownerId])
   @@index([folderId])
+  // Supports the owner-scoped "most used" ordering (DIG-28).
+  @@index([ownerId, usageCount])
 }
 
 model Folder {
