@@ -260,7 +260,9 @@ export function FolderSidebar({
 
         {tree.length === 0 && !addingRoot ? (
           <p className="text-foreground/40 px-2 py-1 text-xs">
-            No folders yet.
+            No folders yet — use{" "}
+            <span className="text-foreground/60 font-medium">+</span> to create
+            one.
           </p>
         ) : (
           <ul className="flex flex-col gap-0.5">
