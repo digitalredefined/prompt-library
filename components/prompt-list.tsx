@@ -8,6 +8,7 @@ import { FavoriteButton } from "@/components/favorite-button";
 import { highlight } from "@/components/highlight";
 import { CategoryChip, TagChip } from "@/components/labels";
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
+import { Button } from "@/components/ui/button";
 
 /** Minimal, serializable prompt shape the list needs (built on the server). */
 export type PromptCard = {
@@ -23,9 +24,6 @@ export type PromptCard = {
 };
 
 export type FolderOption = { id: string; name: string };
-
-const actionBtn =
-  "border-foreground/15 hover:bg-foreground/5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors";
 
 /**
  * Library prompt grid with drag-and-drop + "Move to…" support (DIG-23).
@@ -100,26 +98,18 @@ export function PromptList({
           <span className="text-foreground/40 text-xs">
             Updated {prompt.updatedLabel}
           </span>
-          <div className="flex items-center gap-2 pt-1">
-            <Link
-              href={`/library/${prompt.id}`}
-              draggable={false}
-              className={actionBtn}
-            >
-              Open
-            </Link>
-            <CopyButton
-              text={prompt.body}
-              promptId={prompt.id}
-              className={actionBtn}
-            />
-            <Link
-              href={`/library/${prompt.id}/edit`}
-              draggable={false}
-              className={actionBtn}
-            >
-              Edit
-            </Link>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/library/${prompt.id}`} draggable={false}>
+                Open
+              </Link>
+            </Button>
+            <CopyButton text={prompt.body} promptId={prompt.id} />
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/library/${prompt.id}/edit`} draggable={false}>
+                Edit
+              </Link>
+            </Button>
             <MoveToMenu
               promptId={prompt.id}
               currentFolderId={prompt.folderId}
@@ -171,15 +161,16 @@ function MoveToMenu({
 
   return (
     <div ref={ref} className="relative ml-auto">
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={actionBtn}
       >
         Move to…
-      </button>
+      </Button>
       {open ? (
         <div
           role="menu"
