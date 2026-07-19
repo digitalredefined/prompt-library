@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { CopyButton } from "@/components/copy-button";
 import { DeletePromptButton } from "@/components/delete-prompt-button";
+import { FavoriteButton } from "@/components/favorite-button";
 import { CategoryChip, TagChip } from "@/components/labels";
 import { listFolders } from "@/lib/folders";
 import { getPromptWithLabels } from "@/lib/prompts";
@@ -61,7 +62,14 @@ export default async function PromptDetailPage({
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{prompt.title}</h1>
+        <div className="flex items-start gap-2">
+          <FavoriteButton
+            promptId={prompt.id}
+            favorite={prompt.favorite}
+            className="mt-0.5 text-lg"
+          />
+          <h1 className="text-2xl font-bold tracking-tight">{prompt.title}</h1>
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           <CopyButton
             text={prompt.body}
