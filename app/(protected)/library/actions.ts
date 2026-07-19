@@ -13,6 +13,7 @@ import {
   enableSharing,
   incrementPromptUsage,
   restorePromptVersion,
+  setPromptFavorite,
   updatePrompt,
 } from "@/lib/prompts";
 import type { FormState } from "./form-state";
@@ -138,6 +139,21 @@ export async function movePromptAction(
 export async function recordPromptUsageAction(promptId: string): Promise<void> {
   const user = await requireUser();
   await incrementPromptUsage(user.id, promptId);
+}
+
+/**
+ * Star/unstar a prompt (DIG-29). Owner-scoped via the data layer; revalidates
+ * the library and detail views so the Favorites filter, star state, and counts
+ * stay in sync.
+ */
+export async function setFavoriteAction(
+  promptId: string,
+  favorite: boolean,
+): Promise<void> {
+  const user = await requireUser();
+  await setPromptFavorite(user.id, promptId, favorite);
+  revalidatePath("/library");
+  revalidatePath(`/library/${promptId}`);
 }
 
 export async function setSharingAction(

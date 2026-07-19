@@ -18,11 +18,14 @@ export default async function LibraryLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser("/library");
-  const [folders, totalCount, unfiledCount] = await Promise.all([
-    listFoldersWithCounts(user.id),
-    countPrompts(user.id),
-    countPrompts(user.id, { folderId: null }),
-  ]);
+  const [folders, totalCount, unfiledCount, favoritesCount] = await Promise.all(
+    [
+      listFoldersWithCounts(user.id),
+      countPrompts(user.id),
+      countPrompts(user.id, { folderId: null }),
+      countPrompts(user.id, { favorite: true }),
+    ],
+  );
 
   return (
     <LibraryDndProvider>
@@ -31,6 +34,7 @@ export default async function LibraryLayout({
           folders={folders}
           totalCount={totalCount}
           unfiledCount={unfiledCount}
+          favoritesCount={favoritesCount}
         />
         <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </div>

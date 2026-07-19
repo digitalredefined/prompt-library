@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
+import { FavoriteButton } from "@/components/favorite-button";
 import { highlight } from "@/components/highlight";
 import { CategoryChip, TagChip } from "@/components/labels";
 import { PROMPT_DND_TYPE, useLibraryDnd } from "@/components/library-dnd";
@@ -15,6 +16,7 @@ export type PromptCard = {
   body: string;
   folderId: string | null;
   shared: boolean;
+  favorite: boolean;
   updatedLabel: string;
   categories: { id: string; name: string; color: string | null }[];
   tags: { id: string; name: string }[];
@@ -69,11 +71,18 @@ export function PromptList({
             >
               {highlight(prompt.title, query)}
             </Link>
-            {prompt.shared ? (
-              <span className="text-foreground/50 shrink-0 rounded-full border border-current px-2 py-0.5 text-[11px] font-medium">
-                Shared
-              </span>
-            ) : null}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {prompt.shared ? (
+                <span className="text-foreground/50 rounded-full border border-current px-2 py-0.5 text-[11px] font-medium">
+                  Shared
+                </span>
+              ) : null}
+              <FavoriteButton
+                promptId={prompt.id}
+                favorite={prompt.favorite}
+                className="-my-1"
+              />
+            </div>
           </div>
           <p className="text-foreground/50 line-clamp-2 flex-1 text-sm">
             {highlight(prompt.body, query)}

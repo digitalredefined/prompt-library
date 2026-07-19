@@ -97,14 +97,17 @@ const iconBtn =
 
 /**
  * Build a "/library" href that sets (or clears, when `value` is null) the folder
- * filter while preserving any active category/tag filters (DIG-26) and resetting
- * pagination. `value` is a folder id, "none" for Unfiled, or null for All prompts.
+ * filter while preserving any active category/tag/search filters (DIG-26/27) and
+ * resetting pagination. `value` is a folder id, "none" for Unfiled, or null for
+ * All prompts. Folder and Favorites are mutually-exclusive primary scopes, so
+ * choosing a folder scope also clears the Favorites filter (DIG-29).
  */
 function useFolderHref() {
   const params = useSearchParams();
   return (value: string | null) => {
     const p = new URLSearchParams(params.toString());
     p.delete("page");
+    p.delete("fav");
     if (value === null) p.delete("folderId");
     else p.set("folderId", value);
     const qs = p.toString();
@@ -112,18 +115,41 @@ function useFolderHref() {
   };
 }
 
+/**
+ * Build the "/library?fav=1" href for the Favorites scope (DIG-29): enable the
+ * favorites filter, drop any folder scope, and reset pagination, while keeping
+ * active category/tag/search filters so Favorites composes with them.
+ */
+function useFavoritesHref() {
+  const params = useSearchParams();
+  return () => {
+    const p = new URLSearchParams(params.toString());
+    p.delete("page");
+    p.delete("folderId");
+    p.set("fav", "1");
+    return `/library?${p.toString()}`;
+  };
+}
+
 export function FolderSidebar({
   folders,
   totalCount,
   unfiledCount,
+  favoritesCount,
 }: {
   folders: FolderWithCount[];
   totalCount: number;
   unfiledCount: number;
+  favoritesCount: number;
 }) {
   const tree = buildTree(folders);
-  const activeFolderId = useSearchParams().get("folderId");
+  const params = useSearchParams();
+  const activeFolderId = params.get("folderId");
+  const activeFav = params.get("fav") === "1";
   const hrefForFolder = useFolderHref();
+  const hrefForFavorites = useFavoritesHref();
+  // "All prompts" is the scope only when neither a folder nor Favorites is active.
+  const allActive = activeFolderId === null && !activeFav;
   const [addingRoot, setAddingRoot] = useState(false);
 
   return (
@@ -131,18 +157,33 @@ export function FolderSidebar({
       aria-label="Folders"
       className="border-foreground/10 flex w-full flex-col gap-1 border-b p-4 md:w-64 md:shrink-0 md:border-r md:border-b-0"
     >
-      {/* All prompts — clears the folder filter (keeps category/tag). */}
+      {/* All prompts — clears the folder + favorites filters (keeps category/tag). */}
       <Link
         href={hrefForFolder(null)}
         className={`${rowBase} ${
-          activeFolderId === null
-            ? "bg-foreground/10 font-medium"
-            : "hover:bg-foreground/5"
+          allActive ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
         }`}
-        aria-current={activeFolderId === null ? "page" : undefined}
+        aria-current={allActive ? "page" : undefined}
       >
         <span className={linkBase}>All prompts</span>
         <span className={countBase}>{totalCount}</span>
+      </Link>
+
+      {/* Favorites — cross-cutting scope for starred prompts (DIG-29). */}
+      <Link
+        href={hrefForFavorites()}
+        className={`${rowBase} ${
+          activeFav ? "bg-foreground/10 font-medium" : "hover:bg-foreground/5"
+        }`}
+        aria-current={activeFav ? "page" : undefined}
+      >
+        <span className={`${linkBase} flex items-center gap-1.5`}>
+          <span aria-hidden className="text-amber-500">
+            ★
+          </span>
+          Favorites
+        </span>
+        <span className={countBase}>{favoritesCount}</span>
       </Link>
 
       <div className="text-foreground/40 flex items-center justify-between px-2 pt-3 pb-1 text-xs font-medium tracking-wide uppercase">

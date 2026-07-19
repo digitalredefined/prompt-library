@@ -44,6 +44,7 @@ export default async function LibraryPage({
     tag?: string | string[];
     q?: string;
     sort?: string;
+    fav?: string;
   }>;
 }) {
   const user = await requireUser("/library");
@@ -54,6 +55,7 @@ export default async function LibraryPage({
     tag: tagParam,
     q: queryParam,
     sort: sortParam,
+    fav: favParam,
   } = await searchParams;
 
   // `folderId` absent → all folders; "none" → the Unfiled (root) bucket; any
@@ -68,7 +70,14 @@ export default async function LibraryPage({
   const categoryIds = toArray(categoryParam);
   const tagIds = toArray(tagParam);
   const query = queryParam?.trim() || undefined;
-  const filter = { folderId: folderFilter, categoryIds, tagIds, query };
+  const favorite = favParam === "1";
+  const filter = {
+    folderId: folderFilter,
+    categoryIds,
+    tagIds,
+    query,
+    favorite,
+  };
 
   // Sort resolution (DIG-28): explicit `sort` param wins; otherwise fall back to
   // the last-used sort remembered in the `library_sort` cookie; else the default.
@@ -80,7 +89,8 @@ export default async function LibraryPage({
     folderParam !== undefined ||
     categoryIds.length > 0 ||
     tagIds.length > 0 ||
-    query !== undefined;
+    query !== undefined ||
+    favorite;
 
   const [folders, categories, tags] = await Promise.all([
     listFolders(user.id),
@@ -108,6 +118,7 @@ export default async function LibraryPage({
     body: p.body,
     folderId: p.folderId,
     shared: p.visibility === "UNLISTED",
+    favorite: p.favorite,
     updatedLabel: dateFmt.format(p.updatedAt),
     categories: p.categories.map((c) => ({
       id: c.id,
@@ -125,6 +136,7 @@ export default async function LibraryPage({
     for (const id of tagIds) params.append("tag", id);
     if (query) params.set("q", query);
     if (sort !== DEFAULT_SORT) params.set("sort", sort);
+    if (favorite) params.set("fav", "1");
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `/library?${qs}` : "/library";
