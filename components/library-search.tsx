@@ -1,7 +1,10 @@
 "use client";
 
+import { SearchIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
+import { Input } from "@/components/ui/input";
 
 const DEBOUNCE_MS = 300;
 
@@ -52,19 +55,17 @@ export function LibrarySearch() {
 
   return (
     <div className="relative">
-      <span
+      <SearchIcon
         aria-hidden
-        className="text-foreground/40 pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
-      >
-        ⌕
-      </span>
-      <input
+        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+      />
+      <Input
         type="search"
         value={value}
         onChange={(e) => schedule(e.target.value)}
         placeholder="Search prompts…"
         aria-label="Search prompts"
-        className="border-foreground/15 focus:border-foreground/40 w-full rounded-md border bg-transparent py-2 pr-3 pl-9 text-sm transition-colors outline-none"
+        className="pl-9"
       />
     </div>
   );

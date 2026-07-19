@@ -1,9 +1,12 @@
 "use client";
 
+import { StarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { setFavoriteAction } from "@/app/(protected)/library/actions";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Star toggle for a prompt (DIG-29). Flips the star optimistically for instant
@@ -37,20 +40,27 @@ export function FavoriteButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon"
       onClick={toggle}
       disabled={pending}
       aria-pressed={starred}
       aria-label={starred ? "Unstar prompt" : "Star prompt"}
       title={starred ? "Starred — click to unstar" : "Star this prompt"}
-      className={`rounded-md p-1 text-base leading-none transition-colors disabled:opacity-50 ${
+      className={cn(
+        "size-8",
         starred
-          ? "text-amber-500"
-          : "text-foreground/30 hover:text-foreground/70"
-      } ${className ?? ""}`}
+          ? "text-amber-500 hover:text-amber-500"
+          : "text-muted-foreground/60",
+        className,
+      )}
     >
-      <span aria-hidden>{starred ? "★" : "☆"}</span>
-    </button>
+      <StarIcon
+        className={cn("size-4", starred && "fill-current")}
+        aria-hidden
+      />
+    </Button>
   );
 }

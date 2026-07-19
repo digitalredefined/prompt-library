@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { auth, signIn } from "@/auth";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "Sign in · Prompt Library",
@@ -33,12 +34,9 @@ export default async function SignInPage({
           await signIn("google", { redirectTo: callbackUrl ?? "/" });
         }}
       >
-        <button
-          type="submit"
-          className="border-foreground/15 hover:bg-foreground/5 flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium transition-colors"
-        >
+        <Button type="submit" variant="outline" size="lg" className="w-full">
           Continue with Google
-        </button>
+        </Button>
       </form>
     </main>
   );
