@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LibraryFilters } from "@/components/library-filters";
+import { LibrarySearch } from "@/components/library-search";
 import { PromptList, type PromptCard } from "@/components/prompt-list";
 import { listCategories } from "@/lib/categories";
 import { listFolders } from "@/lib/folders";
@@ -34,6 +35,7 @@ export default async function LibraryPage({
     folderId?: string;
     categoryId?: string | string[];
     tag?: string | string[];
+    q?: string;
   }>;
 }) {
   const user = await requireUser("/library");
@@ -42,6 +44,7 @@ export default async function LibraryPage({
     folderId: folderParam,
     categoryId: categoryParam,
     tag: tagParam,
+    q: queryParam,
   } = await searchParams;
 
   // `folderId` absent → all folders; "none" → the Unfiled (root) bucket; any
@@ -55,9 +58,13 @@ export default async function LibraryPage({
         : folderParam;
   const categoryIds = toArray(categoryParam);
   const tagIds = toArray(tagParam);
-  const filter = { folderId: folderFilter, categoryIds, tagIds };
+  const query = queryParam?.trim() || undefined;
+  const filter = { folderId: folderFilter, categoryIds, tagIds, query };
   const filtersActive =
-    folderParam !== undefined || categoryIds.length > 0 || tagIds.length > 0;
+    folderParam !== undefined ||
+    categoryIds.length > 0 ||
+    tagIds.length > 0 ||
+    query !== undefined;
 
   const [folders, categories, tags] = await Promise.all([
     listFolders(user.id),
@@ -99,6 +106,7 @@ export default async function LibraryPage({
     if (folderParam) params.set("folderId", folderParam);
     for (const id of categoryIds) params.append("categoryId", id);
     for (const id of tagIds) params.append("tag", id);
+    if (query) params.set("q", query);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `/library?${qs}` : "/library";
@@ -126,6 +134,8 @@ export default async function LibraryPage({
         </Link>
       </div>
 
+      <LibrarySearch />
+
       <LibraryFilters
         folders={folderOptions}
         categories={categories.map((c) => ({
@@ -151,7 +161,7 @@ export default async function LibraryPage({
           </Link>
         </div>
       ) : (
-        <PromptList prompts={cards} folders={folderOptions} />
+        <PromptList prompts={cards} folders={folderOptions} query={query} />
       )}
 
       {pageCount > 1 ? (
