@@ -156,6 +156,8 @@ export type PromptFilter = {
   tagIds?: string[];
   /** Free-text search across title, body, notes, and tag names (DIG-27). */
   query?: string;
+  /** When true, restrict the listing to starred prompts (DIG-29). */
+  favorite?: boolean;
 };
 
 /**
@@ -202,6 +204,8 @@ function buildPromptWhere(
     ownerId: userId,
     // `folderId: undefined` means "no filter"; `null` means the root level.
     ...(filter.folderId !== undefined ? { folderId: filter.folderId } : {}),
+    // Favorites filter (DIG-29): only restrict when explicitly enabled.
+    ...(filter.favorite ? { favorite: true } : {}),
     ...(and.length ? { AND: and } : {}),
   };
 }
@@ -449,6 +453,24 @@ export async function incrementPromptUsage(
     UPDATE "Prompt" SET "usageCount" = "usageCount" + 1
     WHERE "id" = ${id} AND "ownerId" = ${userId}
   `;
+}
+
+/**
+ * Star or unstar an owned prompt (DIG-29). Like `incrementPromptUsage`, this is
+ * a raw UPDATE so it doesn't trip Prisma's `@updatedAt` — favoriting isn't a
+ * content edit and shouldn't reorder the prompt under the "recent" sort. Owner-
+ * scoped in the WHERE; returns true when a row was actually changed.
+ */
+export async function setPromptFavorite(
+  userId: string,
+  id: string,
+  favorite: boolean,
+): Promise<boolean> {
+  const affected = await prisma.$executeRaw`
+    UPDATE "Prompt" SET "favorite" = ${favorite}
+    WHERE "id" = ${id} AND "ownerId" = ${userId}
+  `;
+  return affected > 0;
 }
 
 // --- Sharing (foundational read-only links) ---------------------------------
